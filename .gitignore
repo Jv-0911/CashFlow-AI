@@ -226,6 +226,7 @@ __marimo__/
 
 # Python environments and test caches
 .venv/
+.venv-win/
 venv/
 __pycache__/
 .pytest_cache/
