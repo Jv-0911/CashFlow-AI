@@ -1,0 +1,7 @@
+﻿{
+  "business_id": "demo_shop_001",
+  "forecast_days": 30,
+  "safety_reserve_cents": 100000,
+  "evidence_ids": ["txn_demo_001"],
+  "currency": "USD"
+}

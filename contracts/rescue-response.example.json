@@ -1,0 +1,13 @@
+﻿{
+  "summary": "Projected cash may fall below the configured safety reserve.",
+  "risk_level": "high",
+  "evidence_ids": ["txn_demo_001"],
+  "recommended_actions": [
+    {
+      "action_id": "action_demo_001",
+      "title": "Follow up on an overdue invoice",
+      "estimated_impact_cents": 50000,
+      "assumptions": ["The customer pays the invoice in full"]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+﻿{
+  "ledger_entry_id": "ledger_demo_001",
+  "invoice_id": "invoice_demo_001",
+  "amount_cents": 50000,
+  "currency": "USD",
+  "status": "pending_verification",
+  "provider": "paypal_sandbox",
+  "verified_at": null
+}

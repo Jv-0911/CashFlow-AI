@@ -1,0 +1,14 @@
+﻿{
+  "currency": "USD",
+  "safety_reserve_cents": 100000,
+  "first_reserve_breach_date": null,
+  "days": [
+    {
+      "date": "2026-10-10",
+      "opening_balance_cents": 400000,
+      "receipts_cents": 0,
+      "expenses_cents": 0,
+      "closing_balance_cents": 400000
+    }
+  ]
+}
