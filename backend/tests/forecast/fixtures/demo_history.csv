@@ -1,0 +1,5 @@
+transaction_id,date,amount_cents,direction,currency,category,payment_status
+demo_receipt_1,2026-10-10,700,inflow,USD,sales,settled
+demo_expense_1,2026-10-10,200,outflow,USD,supplies,settled
+demo_expense_2,2026-10-12,1100,outflow,USD,rent,settled
+demo_pending_1,2026-10-12,900,inflow,USD,invoice,pending
