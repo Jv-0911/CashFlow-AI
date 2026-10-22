@@ -16,12 +16,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
-  const login = (email: string, name = 'Demo User') => {
+  const login = (email: string, name = 'Demo User', businessName?: string) => {
     const newUser: User = {
       id: `usr_${Date.now()}`,
       name,
       email,
-      businessName: `${name.split(' ')[0]}'s Venture`,
+      businessName: businessName || `${name.split(' ')[0]}'s Venture`,
     };
     setUser(newUser);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));

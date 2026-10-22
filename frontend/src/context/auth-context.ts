@@ -10,7 +10,7 @@ export interface User {
 export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, name?: string) => void;
+  login: (email: string, name?: string, businessName?: string) => void;
   logout: () => void;
   demoLogin: () => void;
 }
