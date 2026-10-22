@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BarChart3, CreditCard, GitBranch, Settings, Sparkles, TrendingUp } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -17,8 +18,14 @@ const VerifyEmailPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('./features/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage }))
 );
-const DashboardPlaceholder = lazy(() =>
-  import('./features/dashboard/DashboardPlaceholder').then((m) => ({ default: m.DashboardPlaceholder }))
+const DashboardLayout = lazy(() =>
+  import('./features/dashboard/DashboardLayout').then((m) => ({ default: m.DashboardLayout }))
+);
+const OverviewPage = lazy(() =>
+  import('./features/dashboard/OverviewPage').then((m) => ({ default: m.OverviewPage }))
+);
+const ModularPagePlaceholder = lazy(() =>
+  import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
 );
 
 function PageLoadingFallback() {
@@ -66,8 +73,77 @@ export default function App() {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-              {/* Protected Dashboard Route */}
-              <Route path="/dashboard" element={<DashboardPlaceholder />} />
+              {/* Dashboard Shell & Overview (Milestone 4) */}
+              <Route path="/dashboard" element={<DashboardLayout />}>
+                <Route index element={<OverviewPage />} />
+                <Route path="overview" element={<OverviewPage />} />
+                <Route
+                  path="forecast"
+                  element={
+                    <ModularPagePlaceholder
+                      title="Cash-Flow Forecast Engine"
+                      milestone="Milestone 5 Ahead"
+                      description="The deterministic 30-day forecasting engine computes daily opening/closing balances, reserve breaches, and cash runways."
+                      icon={TrendingUp}
+                    />
+                  }
+                />
+                <Route
+                  path="rescue"
+                  element={
+                    <ModularPagePlaceholder
+                      title="AI Rescue Suite"
+                      milestone="Milestone 6 Ahead"
+                      description="Ranked recovery recommendations, gap-closure simulations, and PayPal invoice follow-ups to preserve liquidity without debt."
+                      icon={Sparkles}
+                    />
+                  }
+                />
+                <Route
+                  path="scenarios"
+                  element={
+                    <ModularPagePlaceholder
+                      title="Scenario Simulation"
+                      milestone="Milestone 7 Ahead"
+                      description="Simulate what-if parameters: delayed receivables, hiring costs, inventory buffers, and unexpected vendor expenses."
+                      icon={GitBranch}
+                    />
+                  }
+                />
+                <Route
+                  path="payments"
+                  element={
+                    <ModularPagePlaceholder
+                      title="Payments & Verified Ledger"
+                      milestone="Milestone 8 Ahead"
+                      description="Audit-grade ledger with PayPal Sandbox transaction verification, RFC-8785 canonical hashing, and status reconciliation."
+                      icon={CreditCard}
+                    />
+                  }
+                />
+                <Route
+                  path="analytics"
+                  element={
+                    <ModularPagePlaceholder
+                      title="Cash Analytics & Historical Performance"
+                      milestone="Milestone 9 Ahead"
+                      description="In-depth burn rate analysis, collection cycles (DSO), variance against forecast, and category breakdowns."
+                      icon={BarChart3}
+                    />
+                  }
+                />
+                <Route
+                  path="settings"
+                  element={
+                    <ModularPagePlaceholder
+                      title="Settings & Governance"
+                      milestone="Configuration"
+                      description="Manage safety reserve thresholds, notification alerts, currency preferences, and API keys."
+                      icon={Settings}
+                    />
+                  }
+                />
+              </Route>
 
               {/* Wildcard Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
