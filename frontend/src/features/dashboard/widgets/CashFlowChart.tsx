@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import type { ForecastDay } from '../../../types';
 
 interface CashFlowChartProps {
@@ -81,6 +83,26 @@ export function CashFlowChart({ days, safetyReserveCents, currency }: CashFlowCh
         </div>
 
         <div className="chart-controls">
+          <Link
+            to="/dashboard/forecast"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              color: '#7896B0',
+              textDecoration: 'none',
+              fontWeight: 600,
+              padding: '4px 8px',
+              borderRadius: 6,
+              background: 'rgba(120, 150, 176, 0.08)',
+              border: '1px solid rgba(120, 150, 176, 0.18)',
+            }}
+          >
+            <span>Full Forecast</span>
+            <ArrowRight size={12} />
+          </Link>
+
           {(['7D', '14D', '30D'] as const).map((range) => (
             <button
               key={range}

@@ -149,7 +149,6 @@ export function DashboardLayout() {
             >
               <TrendingUp size={18} className="sidebar-link-icon" />
               <span>Forecast</span>
-              <span className="sidebar-link-badge">M5</span>
             </NavLink>
 
             <NavLink

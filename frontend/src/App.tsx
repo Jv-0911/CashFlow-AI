@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { BarChart3, CreditCard, GitBranch, Settings, Sparkles, TrendingUp } from 'lucide-react';
+import { BarChart3, CreditCard, GitBranch, Settings, Sparkles } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -23,6 +23,9 @@ const DashboardLayout = lazy(() =>
 );
 const OverviewPage = lazy(() =>
   import('./features/dashboard/OverviewPage').then((m) => ({ default: m.OverviewPage }))
+);
+const ForecastPage = lazy(() =>
+  import('./features/forecast/ForecastPage').then((m) => ({ default: m.ForecastPage }))
 );
 const ModularPagePlaceholder = lazy(() =>
   import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
@@ -77,17 +80,7 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route index element={<OverviewPage />} />
                 <Route path="overview" element={<OverviewPage />} />
-                <Route
-                  path="forecast"
-                  element={
-                    <ModularPagePlaceholder
-                      title="Cash-Flow Forecast Engine"
-                      milestone="Milestone 5 Ahead"
-                      description="The deterministic 30-day forecasting engine computes daily opening/closing balances, reserve breaches, and cash runways."
-                      icon={TrendingUp}
-                    />
-                  }
-                />
+                <Route path="forecast" element={<ForecastPage />} />
                 <Route
                   path="rescue"
                   element={
