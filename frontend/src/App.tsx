@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { BarChart3, CreditCard, Settings } from 'lucide-react';
+import { BarChart3, Settings } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -32,6 +32,9 @@ const RescuePage = lazy(() =>
 );
 const ScenarioPage = lazy(() =>
   import('./features/scenarios/ScenarioPage').then((m) => ({ default: m.ScenarioPage }))
+);
+const PaymentsLedgerPage = lazy(() =>
+  import('./features/ledger/PaymentsLedgerPage').then((m) => ({ default: m.PaymentsLedgerPage }))
 );
 const ModularPagePlaceholder = lazy(() =>
   import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
@@ -91,17 +94,7 @@ export default function App() {
                 <Route path="forecast" element={<ForecastPage />} />
                 <Route path="rescue" element={<RescuePage />} />
                 <Route path="scenarios" element={<ScenarioPage />} />
-                <Route
-                  path="payments"
-                  element={
-                    <ModularPagePlaceholder
-                      title="Payments & Verified Ledger"
-                      milestone="Milestone 8 Ahead"
-                      description="Audit-grade ledger with PayPal Sandbox transaction verification, RFC-8785 canonical hashing, and status reconciliation."
-                      icon={CreditCard}
-                    />
-                  }
-                />
+                <Route path="payments" element={<PaymentsLedgerPage />} />
                 <Route
                   path="analytics"
                   element={

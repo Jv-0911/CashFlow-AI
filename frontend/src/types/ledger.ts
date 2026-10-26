@@ -31,4 +31,28 @@ export interface LedgerEntry {
   provider: string;
   /** ISO 8601 timestamp when payment was verified, or null */
   verified_at: string | null;
+  /** ISO 8601 creation timestamp, if available */
+  created_at?: string | null;
+  /** Explicit descriptor or audit label */
+  notes?: string | null;
+}
+
+export interface LedgerSummary {
+  verified_recovered_cents: number;
+  pending_verification_cents: number;
+  unresolved_failed_cents: number;
+  total_tracked_cents: number;
+  total_entries: number;
+  verified_entries: number;
+  pending_entries: number;
+  unresolved_entries: number;
+}
+
+export interface LedgerResponse {
+  entries: LedgerEntry[];
+  summary: LedgerSummary;
+  currency: string;
+  is_demo?: boolean;
+  disclaimer?: string;
+  backend_unavailable?: boolean;
 }
