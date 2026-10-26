@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { BarChart3, CreditCard, GitBranch, Settings } from 'lucide-react';
+import { BarChart3, CreditCard, Settings } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -30,9 +30,13 @@ const ForecastPage = lazy(() =>
 const RescuePage = lazy(() =>
   import('./features/rescue/RescuePage').then((m) => ({ default: m.RescuePage }))
 );
+const ScenarioPage = lazy(() =>
+  import('./features/scenarios/ScenarioPage').then((m) => ({ default: m.ScenarioPage }))
+);
 const ModularPagePlaceholder = lazy(() =>
   import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
 );
+
 
 
 function PageLoadingFallback() {
@@ -86,17 +90,7 @@ export default function App() {
                 <Route path="overview" element={<OverviewPage />} />
                 <Route path="forecast" element={<ForecastPage />} />
                 <Route path="rescue" element={<RescuePage />} />
-                <Route
-                  path="scenarios"
-                  element={
-                    <ModularPagePlaceholder
-                      title="Scenario Simulation"
-                      milestone="Milestone 7 Ahead"
-                      description="Simulate what-if parameters: delayed receivables, hiring costs, inventory buffers, and unexpected vendor expenses."
-                      icon={GitBranch}
-                    />
-                  }
-                />
+                <Route path="scenarios" element={<ScenarioPage />} />
                 <Route
                   path="payments"
                   element={
