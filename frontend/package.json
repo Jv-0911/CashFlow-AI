@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "tsc -b && oxlint",
+    "test": "node --test src/features/rescue/__tests__/rescue.test.ts && tsc -b && oxlint",
     "preview": "vite preview"
   },
   "dependencies": {

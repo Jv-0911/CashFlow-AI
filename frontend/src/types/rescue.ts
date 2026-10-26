@@ -14,6 +14,16 @@ export interface RescueAction {
   estimated_impact_cents: number;
   /** List of assumptions underlying this recommendation */
   assumptions: string[];
+  /** Model confidence score in feasibility and outcome certainty */
+  confidence?: 'high' | 'medium' | 'low';
+  /** Grounded analytical rationale for why this action is recommended */
+  rationale?: string;
+  /** Day offset from the simulation start or breach date when cash impact manifests */
+  timing_days_offset?: number;
+  /** Category of liquidity intervention */
+  category?: 'receivables' | 'disbursements' | 'financing';
+  /** Grounded evidence transaction IDs specific to this recommendation, if available */
+  evidence_ids?: string[];
 }
 
 export interface RescueResponse {
@@ -25,4 +35,11 @@ export interface RescueResponse {
   evidence_ids: string[];
   /** Ranked list of recovery actions */
   recommended_actions: RescueAction[];
+  /** Explicit flag indicating this response is demo fixture data */
+  is_demo?: boolean;
+  /** Notice confirming whether data is from fixture or live calculation */
+  disclaimer?: string;
+  /** Flag indicating backend API was unreachable and local fallback was used */
+  backend_unavailable?: boolean;
 }
+

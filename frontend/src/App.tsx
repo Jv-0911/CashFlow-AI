@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { BarChart3, CreditCard, GitBranch, Settings, Sparkles } from 'lucide-react';
+import { BarChart3, CreditCard, GitBranch, Settings } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -27,9 +27,13 @@ const OverviewPage = lazy(() =>
 const ForecastPage = lazy(() =>
   import('./features/forecast/ForecastPage').then((m) => ({ default: m.ForecastPage }))
 );
+const RescuePage = lazy(() =>
+  import('./features/rescue/RescuePage').then((m) => ({ default: m.RescuePage }))
+);
 const ModularPagePlaceholder = lazy(() =>
   import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
 );
+
 
 function PageLoadingFallback() {
   return (
@@ -81,17 +85,7 @@ export default function App() {
                 <Route index element={<OverviewPage />} />
                 <Route path="overview" element={<OverviewPage />} />
                 <Route path="forecast" element={<ForecastPage />} />
-                <Route
-                  path="rescue"
-                  element={
-                    <ModularPagePlaceholder
-                      title="AI Rescue Suite"
-                      milestone="Milestone 6 Ahead"
-                      description="Ranked recovery recommendations, gap-closure simulations, and PayPal invoice follow-ups to preserve liquidity without debt."
-                      icon={Sparkles}
-                    />
-                  }
-                />
+                <Route path="rescue" element={<RescuePage />} />
                 <Route
                   path="scenarios"
                   element={
