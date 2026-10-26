@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { BarChart3, Settings } from 'lucide-react';
 import { ThemeProvider, AuthProvider } from './context';
 
 const LandingPage = lazy(() =>
@@ -36,8 +35,11 @@ const ScenarioPage = lazy(() =>
 const PaymentsLedgerPage = lazy(() =>
   import('./features/ledger/PaymentsLedgerPage').then((m) => ({ default: m.PaymentsLedgerPage }))
 );
-const ModularPagePlaceholder = lazy(() =>
-  import('./features/dashboard/ModularPagePlaceholder').then((m) => ({ default: m.ModularPagePlaceholder }))
+const AnalyticsPage = lazy(() =>
+  import('./features/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage }))
+);
+const SettingsPage = lazy(() =>
+  import('./features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
 
 
@@ -95,28 +97,8 @@ export default function App() {
                 <Route path="rescue" element={<RescuePage />} />
                 <Route path="scenarios" element={<ScenarioPage />} />
                 <Route path="payments" element={<PaymentsLedgerPage />} />
-                <Route
-                  path="analytics"
-                  element={
-                    <ModularPagePlaceholder
-                      title="Cash Analytics & Historical Performance"
-                      milestone="Milestone 9 Ahead"
-                      description="In-depth burn rate analysis, collection cycles (DSO), variance against forecast, and category breakdowns."
-                      icon={BarChart3}
-                    />
-                  }
-                />
-                <Route
-                  path="settings"
-                  element={
-                    <ModularPagePlaceholder
-                      title="Settings & Governance"
-                      milestone="Configuration"
-                      description="Manage safety reserve thresholds, notification alerts, currency preferences, and API keys."
-                      icon={Settings}
-                    />
-                  }
-                />
+                <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
 
               {/* Wildcard Fallback */}
