@@ -8,6 +8,12 @@ import {
   HardDrive,
 } from 'lucide-react';
 import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
+import {
   type AppSettings,
   loadSettings,
   saveSettings,
@@ -18,7 +24,16 @@ import { BusinessProfileCard } from './BusinessProfileCard';
 import { PolicyGovernanceCard } from './PolicyGovernanceCard';
 import { DisplayPreferencesCard } from './DisplayPreferencesCard';
 import { useTheme } from '../../context';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type SettingsWidgetId,
+} from '../customization';
 import '../../styles/settings.css';
+import '../../styles/customization.css';
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
@@ -31,6 +46,32 @@ export const SettingsPage: React.FC = () => {
 
   const { setTheme } = useTheme();
 
+  // Milestone 10.3 Edit Mode & Customization
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges: hasUnsavedCustomizations,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('settings');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   const handleChange = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
     setSettings((prev) => ({
@@ -104,10 +145,46 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const renderWidgetContent = (widgetId: SettingsWidgetId) => {
+    switch (widgetId) {
+      case 'settings-business-profile':
+        return (
+          <BusinessProfileCard
+            settings={settings}
+            errors={errors}
+            onChange={handleChange}
+          />
+        );
+
+      case 'settings-policy-governance':
+        return (
+          <PolicyGovernanceCard
+            settings={settings}
+            errors={errors}
+            onChange={handleChange}
+          />
+        );
+
+      case 'settings-display-preferences':
+        return (
+          <DisplayPreferencesCard
+            settings={settings}
+            errors={errors}
+            onChange={handleChange}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
   return (
     <div className="settings-page">
       {/* Page Header */}
-      <div className="settings-header">
+      <div className="settings-header" style={{ marginBottom: isEditing ? 8 : 16 }}>
         <div>
           <div className="settings-badge">
             <SlidersHorizontal size={13} />
@@ -120,6 +197,18 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         <div className="header-actions">
+          {!isEditing && (
+            <EditToolbar
+              isEditing={false}
+              pageName="Settings"
+              hasUnsavedChanges={false}
+              onStartEditing={startEditing}
+              onCancelEditing={cancelEditing}
+              onSaveEditing={saveEditing}
+              onOpenAddWidget={() => setDrawerOpen(true)}
+              onResetDefaults={resetDraftToDefaults}
+            />
+          )}
           <button
             type="button"
             className="btn-secondary"
@@ -141,6 +230,20 @@ export const SettingsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="Settings"
+          hasUnsavedChanges={hasUnsavedCustomizations}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
+      )}
 
       {/* Local Storage Clarification Banner */}
       <div className="storage-scope-banner">
@@ -166,23 +269,35 @@ export const SettingsPage: React.FC = () => {
 
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="settings-sections-list">
-        <BusinessProfileCard
-          settings={settings}
-          errors={errors}
-          onChange={handleChange}
-        />
-
-        <PolicyGovernanceCard
-          settings={settings}
-          errors={errors}
-          onChange={handleChange}
-        />
-
-        <DisplayPreferencesCard
-          settings={settings}
-          errors={errors}
-          onChange={handleChange}
-        />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={visibleWidgets.map((item) => item.widgetId)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="customization-dashboard-grid" data-editing={isEditing}>
+              {visibleWidgets.map((item) => {
+                const content = renderWidgetContent(item.widgetId as SettingsWidgetId);
+                if (!content) return null;
+                return (
+                  <WidgetWrapper
+                    key={item.widgetId}
+                    item={item}
+                    isEditing={isEditing}
+                    onChangeSize={(size) => changeWidgetSize(item.widgetId, size)}
+                    onChangeColor={(color) => changeWidgetColor(item.widgetId, color)}
+                    onRemove={() => removeWidget(item.widgetId)}
+                  >
+                    {content}
+                  </WidgetWrapper>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Bottom Action Footer for convenience */}
         <div className="settings-footer-bar">
@@ -213,6 +328,16 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </form>
+
+      {/* Add Widget Drawer */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="settings"
+        pageName="Settings"
+        currentLayout={activeLayout}
+        onClose={() => setDrawerOpen(false)}
+        onAddWidget={(id) => addWidget(id)}
+      />
     </div>
   );
 };

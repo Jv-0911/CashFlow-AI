@@ -6,6 +6,12 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { getForecast } from '../../api/forecast';
 import { getRescue } from '../../api/rescue';
 import type { ForecastResponse, RescueResponse, ForecastDay } from '../../types';
@@ -16,7 +22,16 @@ import { BreachExplanationCard } from './BreachExplanationCard';
 import { RescueActionsList } from './RescueActionsList';
 import { SimulatedRecoveryView } from './SimulatedRecoveryView';
 import { EmptyRescueState } from './EmptyRescueState';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type RescueWidgetId,
+} from '../customization';
 import '../../styles/rescue.css';
+import '../../styles/customization.css';
 
 export const RescuePage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -25,6 +40,33 @@ export const RescuePage: React.FC = () => {
   const [rescue, setRescue] = useState<RescueResponse | null>(null);
   const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
   const [retrying, setRetrying] = useState<boolean>(false);
+
+  // Milestone 10.3 Customization
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('rescue');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -133,7 +175,6 @@ export const RescuePage: React.FC = () => {
     );
   }, [days, safetyReserveCents, selectedActions, earliestBreachDate]);
 
-
   // Toggle single action selection
   const handleToggleAction = (actionId: string) => {
     setSelectedActionIds((prev) =>
@@ -190,10 +231,102 @@ export const RescuePage: React.FC = () => {
   const isDemo = !!rescue?.is_demo || !!forecast?.is_demo;
   const isBackendUnavailable = !!rescue?.backend_unavailable;
 
+  const renderWidgetContent = (widgetId: RescueWidgetId) => {
+    switch (widgetId) {
+      case 'rescue-backend-notice':
+        return isBackendUnavailable ? (
+          <div className="backend-unavailable-notice" data-testid="backend-unavailable-banner" style={{ margin: 0 }}>
+            <div className="notice-left">
+              <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+              <div>
+                <span className="notice-title">
+                  Backend Service Notice: <code>/api/v1/rescue</code> is Currently Unreachable
+                </span>
+                <p className="notice-desc">
+                  Displaying contract-grounded demo recommendations conforming strictly to{' '}
+                  <code>contracts/rescue-response.example.json</code>. No synthetic transactions or hallucinated dates are injected.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="notice-retry-btn"
+              onClick={handleRetry}
+              disabled={retrying}
+            >
+              <RefreshCw size={12} className={retrying ? 'spin' : ''} />
+              <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
+            </button>
+          </div>
+        ) : null;
+
+      case 'rescue-cash-risk-summary':
+        return (
+          <CashRiskSummary
+            safetyReserveCents={safetyReserveCents}
+            projectedShortfallCents={projectedShortfallCents}
+            earliestBreachDate={earliestBreachDate}
+            riskLevel={rescue?.risk_level || (projectedShortfallCents > 0 ? 'high' : 'low')}
+            currency={currency}
+            isDemo={isDemo}
+            lowestProjectedBalanceCents={lowestBalanceCents}
+          />
+        );
+
+      case 'rescue-breach-explanation':
+        return (
+          <BreachExplanationCard
+            summary={
+              rescue?.summary ||
+              (projectedShortfallCents > 0
+                ? 'Projected closing cash drops below the configured safety reserve.'
+                : 'Projected closing cash maintains the configured liquidity buffer.')
+            }
+            breachDate={earliestBreachDate}
+            breachDay={breachDay}
+            safetyReserveCents={safetyReserveCents}
+            evidenceIds={rescue?.evidence_ids || []}
+            currency={currency}
+          />
+        );
+
+      case 'rescue-actions-list':
+        return rankedActions.length > 0 ? (
+          <RescueActionsList
+            actions={rankedActions}
+            currency={currency}
+            selectedActionIds={selectedActionIds}
+            onToggleAction={handleToggleAction}
+            onSelectAll={handleSelectAll}
+            onClearAll={handleClearAll}
+          />
+        ) : (
+          <EmptyRescueState
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        );
+
+      case 'rescue-simulation-view':
+        return rankedActions.length > 0 ? (
+          <SimulatedRecoveryView
+            simulation={simulation}
+            currency={currency}
+            onResetSimulation={handleResetSimulation}
+          />
+        ) : null;
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
   return (
     <div className="rescue-page-container">
       {/* Top Breadcrumb & Action Bar */}
-      <div className="rescue-top-bar">
+      <div className="rescue-top-bar" style={{ marginBottom: isEditing ? 8 : 16 }}>
         <div className="top-bar-left">
           <Link to="/dashboard/forecast" className="back-nav-btn">
             <ArrowLeft size={14} />
@@ -207,6 +340,19 @@ export const RescuePage: React.FC = () => {
         </div>
 
         <div className="top-bar-right">
+          {!isEditing && (
+            <EditToolbar
+              isEditing={false}
+              pageName="AI Rescue"
+              hasUnsavedChanges={false}
+              onStartEditing={startEditing}
+              onCancelEditing={cancelEditing}
+              onSaveEditing={saveEditing}
+              onOpenAddWidget={() => setDrawerOpen(true)}
+              onResetDefaults={resetDraftToDefaults}
+            />
+          )}
+
           <button
             type="button"
             className="refresh-btn"
@@ -220,84 +366,57 @@ export const RescuePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Persistent Visible Notice when Backend Rescue API is Unavailable */}
-      {isBackendUnavailable && (
-        <div className="backend-unavailable-notice" data-testid="backend-unavailable-banner">
-          <div className="notice-left">
-            <AlertTriangle size={18} className="text-warning flex-shrink-0" />
-            <div>
-              <span className="notice-title">
-                Backend Service Notice: <code>/api/v1/rescue</code> is Currently Unreachable
-              </span>
-              <p className="notice-desc">
-                Displaying contract-grounded demo recommendations conforming strictly to{' '}
-                <code>contracts/rescue-response.example.json</code>. No synthetic transactions or hallucinated dates are injected.
-              </p>
-            </div>
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="AI Rescue"
+          hasUnsavedChanges={hasUnsavedChanges}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
+      )}
+
+      {/* Dynamic Customizable Widget Grid */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={visibleWidgets.map((w) => w.widgetId)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="customization-dashboard-grid">
+            {visibleWidgets.map((item) => {
+              const content = renderWidgetContent(item.widgetId as RescueWidgetId);
+              if (!content) return null;
+
+              return (
+                <WidgetWrapper
+                  key={item.widgetId}
+                  item={item}
+                  isEditing={isEditing}
+                  onChangeSize={(sz) => changeWidgetSize(item.widgetId, sz)}
+                  onChangeColor={(clr) => changeWidgetColor(item.widgetId, clr)}
+                  onRemove={() => removeWidget(item.widgetId)}
+                >
+                  {content}
+                </WidgetWrapper>
+              );
+            })}
           </div>
-          <button
-            type="button"
-            className="notice-retry-btn"
-            onClick={handleRetry}
-            disabled={retrying}
-          >
-            <RefreshCw size={12} className={retrying ? 'spin' : ''} />
-            <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
-          </button>
-        </div>
-      )}
+        </SortableContext>
+      </DndContext>
 
-      {/* Cash Risk Summary Card */}
-      <CashRiskSummary
-        safetyReserveCents={safetyReserveCents}
-        projectedShortfallCents={projectedShortfallCents}
-        earliestBreachDate={earliestBreachDate}
-        riskLevel={rescue?.risk_level || (projectedShortfallCents > 0 ? 'high' : 'low')}
-        currency={currency}
-        isDemo={isDemo}
-        lowestProjectedBalanceCents={lowestBalanceCents}
+      {/* Add Widget Drawer */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="rescue"
+        pageName="AI Rescue"
+        currentLayout={activeLayout}
+        onAddWidget={addWidget}
+        onClose={() => setDrawerOpen(false)}
       />
-
-      {/* Evidence-Grounded Explanation Card */}
-      <BreachExplanationCard
-        summary={
-          rescue?.summary ||
-          (projectedShortfallCents > 0
-            ? 'Projected closing cash drops below the configured safety reserve.'
-            : 'Projected closing cash maintains the configured liquidity buffer.')
-        }
-        breachDate={earliestBreachDate}
-        breachDay={breachDay}
-        safetyReserveCents={safetyReserveCents}
-        evidenceIds={rescue?.evidence_ids || []}
-        currency={currency}
-      />
-
-      {/* Ranked Actions or Empty Safe State */}
-      {rankedActions.length > 0 ? (
-        <RescueActionsList
-          actions={rankedActions}
-          currency={currency}
-          selectedActionIds={selectedActionIds}
-          onToggleAction={handleToggleAction}
-          onSelectAll={handleSelectAll}
-          onClearAll={handleClearAll}
-        />
-      ) : (
-        <EmptyRescueState
-          safetyReserveCents={safetyReserveCents}
-          currency={currency}
-        />
-      )}
-
-      {/* Simulated Recovery Workflow View */}
-      {rankedActions.length > 0 && (
-        <SimulatedRecoveryView
-          simulation={simulation}
-          currency={currency}
-          onResetSimulation={handleResetSimulation}
-        />
-      )}
     </div>
   );
 };

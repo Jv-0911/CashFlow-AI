@@ -4,3 +4,6 @@ export * from './useTheme';
 export * from './auth-context';
 export * from './AuthProvider';
 export * from './useAuth';
+export * from '../features/customization/customization-context';
+export * from '../features/customization/CustomizationProvider';
+export * from '../features/customization/useCustomization';

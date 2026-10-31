@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "node --test src/features/rescue/__tests__/rescue.test.ts src/features/scenarios/__tests__/scenario.test.ts src/features/ledger/__tests__/ledger.test.ts src/features/analytics/__tests__/analytics.test.ts src/features/settings/__tests__/settings.test.ts && tsc -b && oxlint",
+    "test": "node --test src/features/rescue/__tests__/rescue.test.ts src/features/scenarios/__tests__/scenario.test.ts src/features/ledger/__tests__/ledger.test.ts src/features/analytics/__tests__/analytics.test.ts src/features/settings/__tests__/settings.test.ts src/features/customization/__tests__/customization.test.ts src/features/customization/__tests__/edit-mode.test.ts src/features/customization/__tests__/rollout-pages.test.ts && tsc -b && oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

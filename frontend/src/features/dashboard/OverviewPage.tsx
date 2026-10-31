@@ -12,14 +12,56 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { getForecast } from '../../api';
 import type { ForecastResponse } from '../../types';
 import { CashFlowChart } from './widgets/CashFlowChart';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type OverviewWidgetId,
+} from '../customization';
+import '../../styles/customization.css';
 
 export function OverviewPage() {
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Milestone 10.2 Edit Mode and Widget Controls Hook
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('overview');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
@@ -119,181 +161,171 @@ export function OverviewPage() {
     );
   }
 
-  return (
-    <div className="dashboard-content">
-      {/* Demo Fixture & Disclaimer Banner */}
-      {data.is_demo && (
-        <div className="overview-demo-banner" role="status">
-          <div className="demo-banner-text">
-            <Sparkles size={16} color="#7896B0" />
-            <div>
-              <strong>Demo Projections Active:</strong> Connected to FastAPI{' '}
-              <code>/api/v1/forecast</code>. Deterministic financial engine is being integrated by Member 1.
+  // Render individual widget contents
+  const renderWidgetContent = (widgetId: OverviewWidgetId) => {
+    switch (widgetId) {
+      case 'overview-demo-disclaimer':
+        return data.is_demo ? (
+          <div className="overview-demo-banner" role="status" style={{ margin: 0 }}>
+            <div className="demo-banner-text">
+              <Sparkles size={16} color="#7896B0" />
+              <div>
+                <strong>Demo Projections Active:</strong> Connected to FastAPI{' '}
+                <code>/api/v1/forecast</code>. Deterministic financial engine is being integrated by Member 1.
+              </div>
             </div>
+            <span className="demo-banner-tag">Contract-Compliant Fixture</span>
           </div>
-          <span className="demo-banner-tag">Contract-Compliant Fixture</span>
-        </div>
-      )}
+        ) : null;
 
-      {/* Top 4 KPI Cards Grid (AdminCN layout) */}
-      <div className="kpi-cards-grid">
-        {/* KPI 1: Cash Balance */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Cash Balance</span>
-            <span className="kpi-pill positive">
-              <ArrowUpRight size={12} />
-              <span>+12.6%</span>
-            </span>
-          </div>
-
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCurrency(currentBalanceCents, currency)}</div>
-              <div className="kpi-subtext">
-                Net flow {netFlowCents >= 0 ? '+' : ''}{formatCurrency(netFlowCents, currency)} • Operating liquidity
+      case 'overview-kpi-summary':
+        return (
+          <div className="kpi-cards-grid" style={{ margin: 0 }}>
+            {/* KPI 1: Cash Balance */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Cash Balance</span>
+                <span className="kpi-pill positive">
+                  <ArrowUpRight size={12} />
+                  <span>+12.6%</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCurrency(currentBalanceCents, currency)}</div>
+                  <div className="kpi-subtext">
+                    Net flow {netFlowCents >= 0 ? '+' : ''}{formatCurrency(netFlowCents, currency)} • Operating liquidity
+                  </div>
+                </div>
+                <div className="kpi-mini-bars" aria-hidden="true">
+                  <span className="kpi-bar" style={{ height: '40%' }} />
+                  <span className="kpi-bar" style={{ height: '60%' }} />
+                  <span className="kpi-bar" style={{ height: '50%' }} />
+                  <span className="kpi-bar active" style={{ height: '85%' }} />
+                  <span className="kpi-bar active" style={{ height: '75%' }} />
+                </div>
               </div>
             </div>
 
-            {/* Mini bars visual */}
-            <div className="kpi-mini-bars" aria-hidden="true">
-              <span className="kpi-bar" style={{ height: '40%' }} />
-              <span className="kpi-bar" style={{ height: '60%' }} />
-              <span className="kpi-bar" style={{ height: '50%' }} />
-              <span className="kpi-bar active" style={{ height: '85%' }} />
-              <span className="kpi-bar active" style={{ height: '75%' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 2: Projected Inflows */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Projected Inflows</span>
-            <span className="kpi-pill positive">
-              <TrendingUp size={12} />
-              <span>+25.2%</span>
-            </span>
-          </div>
-
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCurrency(totalInflowsCents, currency)}</div>
-              <div className="kpi-subtext">Customer payments & receipts</div>
-            </div>
-
-            {/* Mini bars visual (green) */}
-            <div className="kpi-mini-bars" aria-hidden="true">
-              <span className="kpi-bar green" style={{ height: '30%' }} />
-              <span className="kpi-bar green" style={{ height: '80%' }} />
-              <span className="kpi-bar green" style={{ height: '20%' }} />
-              <span className="kpi-bar green" style={{ height: '90%' }} />
-              <span className="kpi-bar green" style={{ height: '50%' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 3: Projected Outflows */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Projected Outflows</span>
-            <span className="kpi-pill neutral">
-              <TrendingDown size={12} />
-              <span>-12.2%</span>
-            </span>
-          </div>
-
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCurrency(totalOutflowsCents, currency)}</div>
-              <div className="kpi-subtext">Payroll & vendor obligations</div>
-            </div>
-
-            {/* Mini bars visual (mauve) */}
-            <div className="kpi-mini-bars" aria-hidden="true">
-              <span className="kpi-bar mauve" style={{ height: '60%' }} />
-              <span className="kpi-bar mauve" style={{ height: '45%' }} />
-              <span className="kpi-bar mauve" style={{ height: '85%' }} />
-              <span className="kpi-bar mauve" style={{ height: '30%' }} />
-              <span className="kpi-bar mauve" style={{ height: '55%' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 4: Safety Reserve & Breach Status */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Safety Reserve</span>
-            <span className={`kpi-pill ${isBreached ? 'warning' : 'positive'}`}>
-              <Shield size={12} />
-              <span>{isBreached ? 'Breach Risk' : 'Safe Runway'}</span>
-            </span>
-          </div>
-
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCurrency(safetyReserveCents, currency)}</div>
-              <div className="kpi-subtext">
-                {breachDate ? `Breach on ${breachDate}` : `${reserveRatio}% coverage ratio`}
+            {/* KPI 2: Projected Inflows */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Projected Inflows</span>
+                <span className="kpi-pill positive">
+                  <TrendingUp size={12} />
+                  <span>+25.2%</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCurrency(totalInflowsCents, currency)}</div>
+                  <div className="kpi-subtext">Customer payments & receipts</div>
+                </div>
+                <div className="kpi-mini-bars" aria-hidden="true">
+                  <span className="kpi-bar green" style={{ height: '30%' }} />
+                  <span className="kpi-bar green" style={{ height: '80%' }} />
+                  <span className="kpi-bar green" style={{ height: '20%' }} />
+                  <span className="kpi-bar green" style={{ height: '90%' }} />
+                  <span className="kpi-bar green" style={{ height: '50%' }} />
+                </div>
               </div>
             </div>
 
-            {/* Circular Ring Gauge */}
-            <div style={{ position: 'relative', width: 44, height: 44 }} aria-hidden="true">
-              <svg width="44" height="44" viewBox="0 0 44 44">
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="18"
-                  fill="none"
-                  stroke="rgba(120, 150, 176, 0.15)"
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="18"
-                  fill="none"
-                  stroke={isBreached ? '#fbbf24' : '#34d399'}
-                  strokeWidth="4"
-                  strokeDasharray="113"
-                  strokeDashoffset={113 - (113 * Math.min(100, reserveRatio)) / 100}
-                  strokeLinecap="round"
-                  transform="rotate(-90 22 22)"
-                />
-              </svg>
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: '#E7E9ED',
-                }}
-              >
-                {Math.min(999, reserveRatio)}%
+            {/* KPI 3: Projected Outflows */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Projected Outflows</span>
+                <span className="kpi-pill neutral">
+                  <TrendingDown size={12} />
+                  <span>-12.2%</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCurrency(totalOutflowsCents, currency)}</div>
+                  <div className="kpi-subtext">Payroll & vendor obligations</div>
+                </div>
+                <div className="kpi-mini-bars" aria-hidden="true">
+                  <span className="kpi-bar mauve" style={{ height: '60%' }} />
+                  <span className="kpi-bar mauve" style={{ height: '45%' }} />
+                  <span className="kpi-bar mauve" style={{ height: '85%' }} />
+                  <span className="kpi-bar mauve" style={{ height: '30%' }} />
+                  <span className="kpi-bar mauve" style={{ height: '55%' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* KPI 4: Safety Reserve & Breach Status */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Safety Reserve</span>
+                <span className={`kpi-pill ${isBreached ? 'warning' : 'positive'}`}>
+                  <Shield size={12} />
+                  <span>{isBreached ? 'Breach Risk' : 'Safe Runway'}</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCurrency(safetyReserveCents, currency)}</div>
+                  <div className="kpi-subtext">
+                    {breachDate ? `Breach on ${breachDate}` : `${reserveRatio}% coverage ratio`}
+                  </div>
+                </div>
+                <div style={{ position: 'relative', width: 44, height: 44 }} aria-hidden="true">
+                  <svg width="44" height="44" viewBox="0 0 44 44">
+                    <circle
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      fill="none"
+                      stroke="rgba(120, 150, 176, 0.15)"
+                      strokeWidth="4"
+                    />
+                    <circle
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      fill="none"
+                      stroke={isBreached ? '#fbbf24' : '#34d399'}
+                      strokeWidth="4"
+                      strokeDasharray="113"
+                      strokeDashoffset={113 - (113 * Math.min(100, reserveRatio)) / 100}
+                      strokeLinecap="round"
+                      transform="rotate(-90 22 22)"
+                    />
+                  </svg>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#E7E9ED',
+                    }}
+                  >
+                    {Math.min(999, reserveRatio)}%
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        );
 
-      {/* Main Grid: 2/3 Chart + 1/3 Side Widgets (AdminCN layout) */}
-      <div className="overview-main-grid">
-        {/* Left: Cash-Flow Forecast Chart */}
-        <CashFlowChart
-          days={days}
-          safetyReserveCents={safetyReserveCents}
-          currency={currency}
-        />
+      case 'overview-forecast-chart':
+        return (
+          <CashFlowChart
+            days={days}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        );
 
-        {/* Right: AI Rescue + Recent Activity Cards */}
-        <div className="side-cards-column">
-          {/* AI Rescue Recommendation Card */}
-          <div className="side-widget-card">
+      case 'overview-rescue-recommendation':
+        return (
+          <div className="side-widget-card" style={{ height: '100%', margin: 0 }}>
             <div className="side-widget-header">
               <div className="side-widget-title">
                 <Sparkles size={16} color="#7896B0" />
@@ -327,13 +359,15 @@ export function OverviewPage() {
               <ArrowUpRight size={13} />
             </Link>
 
-            <div style={{ fontSize: 10, color: '#9AA6B5', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#9AA6B5', textAlign: 'center', marginTop: 8 }}>
               Simulation only • No real funds or notifications dispatched
             </div>
           </div>
+        );
 
-          {/* Recent Activity & Ledger Feed */}
-          <div className="side-widget-card">
+      case 'overview-recent-activity':
+        return (
+          <div className="side-widget-card" style={{ height: '100%', margin: 0 }}>
             <div className="side-widget-header">
               <div className="side-widget-title">
                 <Clock size={16} color="#7896B0" />
@@ -398,8 +432,101 @@ export function OverviewPage() {
               </div>
             </div>
           </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
+  return (
+    <div className="dashboard-content">
+      {/* Overview Header Row */}
+      <div
+        className="overview-header-row"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: isEditing ? 8 : 16,
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+            Overview
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+            Live liquidity, deterministic runway, and autonomous rescue recommendations
+          </p>
         </div>
+
+        {!isEditing && (
+          <EditToolbar
+            isEditing={false}
+            pageName="Overview"
+            hasUnsavedChanges={false}
+            onStartEditing={startEditing}
+            onCancelEditing={cancelEditing}
+            onSaveEditing={saveEditing}
+            onOpenAddWidget={() => setDrawerOpen(true)}
+            onResetDefaults={resetDraftToDefaults}
+          />
+        )}
       </div>
+
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="Overview"
+          hasUnsavedChanges={hasUnsavedChanges}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
+      )}
+
+      {/* Dynamic Modular Widget Grid */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={visibleWidgets.map((w) => w.widgetId)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="customization-dashboard-grid">
+            {visibleWidgets.map((item) => {
+              const content = renderWidgetContent(item.widgetId as OverviewWidgetId);
+              if (!content) return null;
+
+              return (
+                <WidgetWrapper
+                  key={item.widgetId}
+                  item={item}
+                  isEditing={isEditing}
+                  onChangeSize={(sz) => changeWidgetSize(item.widgetId, sz)}
+                  onChangeColor={(clr) => changeWidgetColor(item.widgetId, clr)}
+                  onRemove={() => removeWidget(item.widgetId)}
+                >
+                  {content}
+                </WidgetWrapper>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {/* Add Widget Drawer Library */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="overview"
+        pageName="Overview"
+        currentLayout={activeLayout}
+        onAddWidget={addWidget}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

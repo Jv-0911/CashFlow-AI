@@ -5,8 +5,15 @@ import {
   AlertTriangle,
   ArrowLeft,
   Sparkles,
+  Receipt,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { getLedgerEntries } from '../../api/ledger';
 import type { LedgerEntry, LedgerResponse } from '../../types/ledger';
 import {
@@ -18,7 +25,16 @@ import { LedgerSummaryCards } from './LedgerSummaryCards';
 import { LedgerControls } from './LedgerControls';
 import { LedgerTable } from './LedgerTable';
 import { LedgerDetailDrawer } from './LedgerDetailDrawer';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type PaymentsWidgetId,
+} from '../customization';
 import '../../styles/ledger.css';
+import '../../styles/customization.css';
 
 export const PaymentsLedgerPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -28,6 +44,33 @@ export const PaymentsLedgerPage: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<LedgerFilterTab>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [retrying, setRetrying] = useState<boolean>(false);
+
+  // Milestone 10.3 Customization
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('payments');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   const fetchLedger = useCallback(async () => {
     try {
@@ -166,10 +209,122 @@ export const PaymentsLedgerPage: React.FC = () => {
     );
   }
 
+  const renderWidgetContent = (widgetId: PaymentsWidgetId) => {
+    switch (widgetId) {
+      case 'payments-backend-notice':
+        return showNotice ? (
+          <div
+            className="backend-unavailable-notice"
+            data-testid="backend-unavailable-banner"
+            style={{ margin: 0 }}
+          >
+            <div className="notice-left">
+              <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+              <div>
+                <span className="notice-title">
+                  {isBackendUnavailable ? (
+                    <>
+                      Backend Service Notice: <code>/api/v1/ledger</code> is Currently Unreachable
+                    </>
+                  ) : (
+                    'Demo Mode Active: Synthetic Recovery Records'
+                  )}
+                </span>
+                <p className="notice-desc">
+                  {isBackendUnavailable ? (
+                    <>
+                      Displaying synthetic demo records adhering to{' '}
+                      <code>contracts/payment-ledger.example.json</code>. Live PayPal Sandbox
+                      settlement and verification will be integrated by Member 3 in{' '}
+                      <code>backend/app/ledger</code>.
+                    </>
+                  ) : (
+                    <>
+                      Displaying synthetic demo records returned by backend. Live PayPal Sandbox
+                      settlement and authoritative verification will be completed in{' '}
+                      <code>backend/app/ledger</code>.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+            {isBackendUnavailable && (
+              <button
+                type="button"
+                className="notice-retry-btn"
+                onClick={handleRetry}
+                disabled={retrying}
+              >
+                <RefreshCw size={12} className={retrying ? 'spin' : ''} />
+                <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
+              </button>
+            )}
+          </div>
+        ) : null;
+
+      case 'payments-summary-cards':
+        return <LedgerSummaryCards summary={summary} currency={currency} />;
+
+      case 'payments-controls':
+        return (
+          <LedgerControls
+            currentTab={currentTab}
+            searchQuery={searchQuery}
+            totalEntries={entries.length}
+            filteredCount={filteredEntries.length}
+            onTabChange={setCurrentTab}
+            onSearchChange={setSearchQuery}
+            onClearSearch={() => setSearchQuery('')}
+          />
+        );
+
+      case 'payments-table':
+        return (
+          <LedgerTable
+            entries={filteredEntries}
+            currency={currency}
+            selectedEntryId={selectedEntry?.ledger_entry_id || null}
+            onSelectEntry={(entry) => setSelectedEntry(entry)}
+            onClearFilters={handleClearFilters}
+          />
+        );
+
+      case 'payments-detail-drawer':
+        return isEditing ? (
+          <div
+            style={{
+              padding: '16px',
+              background: 'rgba(15, 20, 34, 0.7)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Receipt size={20} color="#a78bfa" />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Transaction Detail & Audit Drawer
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                Interactive slideover panel — activates automatically when clicking any row in the ledger table.
+              </div>
+            </div>
+          </div>
+        ) : null;
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
   return (
     <div className="ledger-page-container">
       {/* Top Bar Navigation */}
-      <div className="ledger-top-bar">
+      <div className="ledger-top-bar" style={{ marginBottom: isEditing ? 8 : 16 }}>
         <div className="top-bar-left">
           <Link to="/dashboard" className="back-nav-btn">
             <ArrowLeft size={14} />
@@ -188,6 +343,19 @@ export const PaymentsLedgerPage: React.FC = () => {
             <span>AI Rescue Actions</span>
           </Link>
 
+          {!isEditing && (
+            <EditToolbar
+              isEditing={false}
+              pageName="Payments & Ledger"
+              hasUnsavedChanges={false}
+              onStartEditing={startEditing}
+              onCancelEditing={cancelEditing}
+              onSaveEditing={saveEditing}
+              onOpenAddWidget={() => setDrawerOpen(true)}
+              onResetDefaults={resetDraftToDefaults}
+            />
+          )}
+
           <button
             type="button"
             className="refresh-btn"
@@ -201,80 +369,59 @@ export const PaymentsLedgerPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Persistent Visible Notice when Backend Ledger API is Unavailable OR in Demo Mode */}
-      {showNotice && (
-        <div
-          className="backend-unavailable-notice"
-          data-testid="backend-unavailable-banner"
-        >
-          <div className="notice-left">
-            <AlertTriangle size={18} className="text-warning flex-shrink-0" />
-            <div>
-              <span className="notice-title">
-                {isBackendUnavailable ? (
-                  <>
-                    Backend Service Notice: <code>/api/v1/ledger</code> is Currently Unreachable
-                  </>
-                ) : (
-                  'Demo Mode Active: Synthetic Recovery Records'
-                )}
-              </span>
-              <p className="notice-desc">
-                {isBackendUnavailable ? (
-                  <>
-                    Displaying synthetic demo records adhering to{' '}
-                    <code>contracts/payment-ledger.example.json</code>. Live PayPal Sandbox
-                    settlement and verification will be integrated by Member 3 in{' '}
-                    <code>backend/app/ledger</code>.
-                  </>
-                ) : (
-                  <>
-                    Displaying synthetic demo records returned by backend. Live PayPal Sandbox
-                    settlement and authoritative verification will be completed in{' '}
-                    <code>backend/app/ledger</code>.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-          {isBackendUnavailable && (
-            <button
-              type="button"
-              className="notice-retry-btn"
-              onClick={handleRetry}
-              disabled={retrying}
-            >
-              <RefreshCw size={12} className={retrying ? 'spin' : ''} />
-              <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
-            </button>
-          )}
-        </div>
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="Payments & Ledger"
+          hasUnsavedChanges={hasUnsavedChanges}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
       )}
 
-      {/* Summary KPI Cards Grid */}
-      <LedgerSummaryCards summary={summary} currency={currency} />
+      {/* Dynamic Customizable Widget Grid */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={visibleWidgets.map((w) => w.widgetId)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="customization-dashboard-grid">
+            {visibleWidgets.map((item) => {
+              const content = renderWidgetContent(item.widgetId as PaymentsWidgetId);
+              if (!content) return null;
 
-      {/* Filter Tabs & Search Controls */}
-      <LedgerControls
-        currentTab={currentTab}
-        searchQuery={searchQuery}
-        totalEntries={entries.length}
-        filteredCount={filteredEntries.length}
-        onTabChange={setCurrentTab}
-        onSearchChange={setSearchQuery}
-        onClearSearch={() => setSearchQuery('')}
+              return (
+                <WidgetWrapper
+                  key={item.widgetId}
+                  item={item}
+                  isEditing={isEditing}
+                  onChangeSize={(sz) => changeWidgetSize(item.widgetId, sz)}
+                  onChangeColor={(clr) => changeWidgetColor(item.widgetId, clr)}
+                  onRemove={() => removeWidget(item.widgetId)}
+                >
+                  {content}
+                </WidgetWrapper>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {/* Add Widget Drawer */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="payments"
+        pageName="Payments & Ledger"
+        currentLayout={activeLayout}
+        onAddWidget={addWidget}
+        onClose={() => setDrawerOpen(false)}
       />
 
-      {/* Ledger Table */}
-      <LedgerTable
-        entries={filteredEntries}
-        currency={currency}
-        selectedEntryId={selectedEntry?.ledger_entry_id || null}
-        onSelectEntry={(entry) => setSelectedEntry(entry)}
-        onClearFilters={handleClearFilters}
-      />
-
-      {/* Detail Slideover Drawer */}
+      {/* Detail Slideover Drawer (active when row selected) */}
       <LedgerDetailDrawer
         entry={selectedEntry}
         currency={currency}

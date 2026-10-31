@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, AuthProvider } from './context';
+import { ThemeProvider, AuthProvider, CustomizationProvider } from './context';
 
 const LandingPage = lazy(() =>
   import('./features/landing/LandingPage').then((m) => ({ default: m.LandingPage }))
@@ -77,35 +77,37 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoadingFallback />}>
-            <Routes>
-              {/* Landing Page */}
-              <Route path="/" element={<LandingPage />} />
+        <CustomizationProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoadingFallback />}>
+              <Routes>
+                {/* Landing Page */}
+                <Route path="/" element={<LandingPage />} />
 
-              {/* Authentication Suite */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                {/* Authentication Suite */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-              {/* Dashboard Shell & Overview (Milestone 4) */}
-              <Route path="/dashboard" element={<DashboardLayout />}>
-                <Route index element={<OverviewPage />} />
-                <Route path="overview" element={<OverviewPage />} />
-                <Route path="forecast" element={<ForecastPage />} />
-                <Route path="rescue" element={<RescuePage />} />
-                <Route path="scenarios" element={<ScenarioPage />} />
-                <Route path="payments" element={<PaymentsLedgerPage />} />
-                <Route path="analytics" element={<AnalyticsPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-              </Route>
+                {/* Dashboard Shell & Overview (Milestone 4) */}
+                <Route path="/dashboard" element={<DashboardLayout />}>
+                  <Route index element={<OverviewPage />} />
+                  <Route path="overview" element={<OverviewPage />} />
+                  <Route path="forecast" element={<ForecastPage />} />
+                  <Route path="rescue" element={<RescuePage />} />
+                  <Route path="scenarios" element={<ScenarioPage />} />
+                  <Route path="payments" element={<PaymentsLedgerPage />} />
+                  <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-              {/* Wildcard Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+                {/* Wildcard Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </CustomizationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

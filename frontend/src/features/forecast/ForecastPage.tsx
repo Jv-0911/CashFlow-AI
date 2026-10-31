@@ -12,18 +12,60 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { getForecast } from '../../api';
 import type { ForecastResponse } from '../../types';
 import { formatCents } from '../../utils/currency';
 import { ForecastChart } from './ForecastChart';
 import { ForecastTable } from './ForecastTable';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type ForecastWidgetId,
+} from '../customization';
 import '../../styles/forecast.css';
+import '../../styles/customization.css';
 
 export function ForecastPage() {
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [horizonDays, setHorizonDays] = useState<7 | 14 | 30>(30);
+
+  // Milestone 10.3 Edit Mode & Customization
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('forecast');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   const fetchForecastData = useCallback(async () => {
     setLoading(true);
@@ -142,10 +184,226 @@ export function ForecastPage() {
     );
   }
 
+  const renderWidgetContent = (widgetId: ForecastWidgetId) => {
+    switch (widgetId) {
+      case 'forecast-horizon-controls':
+        return (
+          <div
+            className="horizon-control-panel"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 16px',
+              background: 'rgba(15, 20, 34, 0.6)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              width: '100%',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Forecast Projection Window
+            </span>
+            <div className="horizon-toggle-group" role="group" aria-label="Forecast horizon selection">
+              {([7, 14, 30] as const).map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className={`horizon-btn ${horizonDays === h ? 'active' : ''}`}
+                  onClick={() => setHorizonDays(h)}
+                  aria-pressed={horizonDays === h}
+                >
+                  {h} Days
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'forecast-demo-disclaimer':
+        return data.is_demo ? (
+          <div className="overview-demo-banner" role="status" style={{ margin: 0 }}>
+            <div className="demo-banner-text">
+              <Sparkles size={16} color="#7896B0" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Demo Forecast Projections:</strong> Displaying contract-compliant fixture data from FastAPI{' '}
+                <code>/api/v1/forecast</code>. Deterministic calculations by Member 1 in{' '}
+                <code>backend/app/forecast/</code> are pending integration.
+              </div>
+            </div>
+            <span className="demo-banner-tag">Contract Fixture</span>
+          </div>
+        ) : null;
+
+      case 'forecast-breach-alert':
+        return isBreached ? (
+          <div className="breach-alert-card warning" role="alert" style={{ margin: 0 }}>
+            <div className="breach-alert-left">
+              <div className="breach-icon-pill">
+                <AlertTriangle size={20} />
+              </div>
+              <div className="breach-alert-text">
+                <span className="breach-alert-title">
+                  Safety Reserve Breach Projected on {breachDate || 'Forecast Horizon'}
+                </span>
+                <span className="breach-alert-desc">
+                  Projected closing balance reaches a minimum of{' '}
+                  <strong>{formatCents(minBalanceCents, currency)}</strong>, creating a shortfall of{' '}
+                  <strong>{formatCents(shortfallCents, currency)}</strong> below the configured{' '}
+                  <strong>{formatCents(safetyReserveCents, currency)}</strong> reserve threshold.
+                </span>
+              </div>
+            </div>
+
+            <Link to="/dashboard/rescue" className="breach-rescue-btn">
+              <span>Simulate Recovery in AI Rescue</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+        ) : (
+          <div className="breach-alert-card safe" style={{ margin: 0 }}>
+            <div className="breach-alert-left">
+              <div className="breach-icon-pill">
+                <CheckCircle2 size={20} />
+              </div>
+              <div className="breach-alert-text">
+                <span className="breach-alert-title">Safety Buffer Fully Maintained</span>
+                <span className="breach-alert-desc">
+                  No reserve breach detected across the selected {horizonDays}-day horizon. Minimum projected balance is{' '}
+                  <strong>{formatCents(minBalanceCents, currency)}</strong> (
+                  <strong>{formatCents(minBalanceCents - safetyReserveCents, currency)}</strong> above safety reserve).
+                </span>
+              </div>
+            </div>
+
+            <span className="demo-banner-tag" style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34d399' }}>
+              Safe Runway
+            </span>
+          </div>
+        );
+
+      case 'forecast-metrics-summary':
+        return (
+          <div
+            className="kpi-cards-grid"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              margin: 0,
+            }}
+          >
+            {/* Metric 1: Ending Balance */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Ending Balance ({horizonDays}d)</span>
+                <span className={`kpi-pill ${endingBalanceCents >= safetyReserveCents ? 'positive' : 'warning'}`}>
+                  <ArrowUpRight size={12} />
+                  <span>Projected</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCents(endingBalanceCents, currency)}</div>
+                  <div className="kpi-subtext">Liquidity on day {days.length}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metric 2: Total Receipts */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Total Receipts</span>
+                <span className="kpi-pill positive">
+                  <TrendingUp size={12} />
+                  <span>Inflow</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value" style={{ color: '#34d399' }}>
+                    +{formatCents(totalReceiptsCents, currency)}
+                  </div>
+                  <div className="kpi-subtext">Sum of all incoming receipts</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metric 3: Total Expenses */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Total Expenses</span>
+                <span className="kpi-pill neutral">
+                  <TrendingDown size={12} />
+                  <span>Outflow</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value" style={{ color: '#9A758D' }}>
+                    -{formatCents(totalExpensesCents, currency)}
+                  </div>
+                  <div className="kpi-subtext">Committed disbursements & AP</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metric 4: Minimum Projected Balance */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">Minimum Balance</span>
+                <span className={`kpi-pill ${minBalanceCents >= safetyReserveCents ? 'positive' : 'warning'}`}>
+                  <Shield size={12} />
+                  <span>{minBalanceCents >= safetyReserveCents ? 'Above Buffer' : 'Dip Risk'}</span>
+                </span>
+              </div>
+              <div className="kpi-value-row">
+                <div>
+                  <div className="kpi-value">{formatCents(minBalanceCents, currency)}</div>
+                  <div className="kpi-subtext">
+                    Net horizon flow: {netProjectionCents >= 0 ? '+' : ''}{formatCents(netProjectionCents, currency)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'forecast-chart':
+        return (
+          <ForecastChart
+            days={days}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        );
+
+      case 'forecast-table':
+        return (
+          <ForecastTable
+            days={days}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
   return (
     <div className="dashboard-content">
-      {/* Header with Horizon Controls */}
-      <div className="forecast-header-row">
+      {/* Header Row */}
+      <div
+        className="forecast-header-row"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: isEditing ? 8 : 16,
+        }}
+      >
         <div className="forecast-title-group">
           <h1 className="forecast-main-title">Cash-Flow Forecast</h1>
           <p className="forecast-subtitle">
@@ -153,173 +411,70 @@ export function ForecastPage() {
           </p>
         </div>
 
-        {/* Horizon Controls */}
-        <div className="horizon-toggle-group" role="group" aria-label="Forecast horizon selection">
-          {([7, 14, 30] as const).map((h) => (
-            <button
-              key={h}
-              type="button"
-              className={`horizon-btn ${horizonDays === h ? 'active' : ''}`}
-              onClick={() => setHorizonDays(h)}
-              aria-pressed={horizonDays === h}
-            >
-              {h} Days
-            </button>
-          ))}
-        </div>
+        {!isEditing && (
+          <EditToolbar
+            isEditing={false}
+            pageName="Forecast"
+            hasUnsavedChanges={false}
+            onStartEditing={startEditing}
+            onCancelEditing={cancelEditing}
+            onSaveEditing={saveEditing}
+            onOpenAddWidget={() => setDrawerOpen(true)}
+            onResetDefaults={resetDraftToDefaults}
+          />
+        )}
       </div>
 
-      {/* Demo Transparency Disclaimer */}
-      {data.is_demo && (
-        <div className="overview-demo-banner" role="status">
-          <div className="demo-banner-text">
-            <Sparkles size={16} color="#7896B0" style={{ flexShrink: 0 }} />
-            <div>
-              <strong>Demo Forecast Projections:</strong> Displaying contract-compliant fixture data from FastAPI{' '}
-              <code>/api/v1/forecast</code>. Deterministic calculations by Member 1 in{' '}
-              <code>backend/app/forecast/</code> are pending integration.
-            </div>
-          </div>
-          <span className="demo-banner-tag">Contract Fixture</span>
-        </div>
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="Forecast"
+          hasUnsavedChanges={hasUnsavedChanges}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
       )}
 
-      {/* Reserve Breach Alert Banner */}
-      {isBreached ? (
-        <div className="breach-alert-card warning" role="alert">
-          <div className="breach-alert-left">
-            <div className="breach-icon-pill">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="breach-alert-text">
-              <span className="breach-alert-title">
-                Safety Reserve Breach Projected on {breachDate || 'Forecast Horizon'}
-              </span>
-              <span className="breach-alert-desc">
-                Projected closing balance reaches a minimum of{' '}
-                <strong>{formatCents(minBalanceCents, currency)}</strong>, creating a shortfall of{' '}
-                <strong>{formatCents(shortfallCents, currency)}</strong> below the configured{' '}
-                <strong>{formatCents(safetyReserveCents, currency)}</strong> reserve threshold.
-              </span>
-            </div>
-          </div>
+      {/* Dynamic Customizable Widget Grid */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={visibleWidgets.map((w) => w.widgetId)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="customization-dashboard-grid">
+            {visibleWidgets.map((item) => {
+              const content = renderWidgetContent(item.widgetId as ForecastWidgetId);
+              if (!content) return null;
 
-          <Link to="/dashboard/rescue" className="breach-rescue-btn">
-            <span>Simulate Recovery in AI Rescue</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-      ) : (
-        <div className="breach-alert-card safe">
-          <div className="breach-alert-left">
-            <div className="breach-icon-pill">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="breach-alert-text">
-              <span className="breach-alert-title">Safety Buffer Fully Maintained</span>
-              <span className="breach-alert-desc">
-                No reserve breach detected across the selected {horizonDays}-day horizon. Minimum projected balance is{' '}
-                <strong>{formatCents(minBalanceCents, currency)}</strong> (
-                <strong>{formatCents(minBalanceCents - safetyReserveCents, currency)}</strong> above safety reserve).
-              </span>
-            </div>
+              return (
+                <WidgetWrapper
+                  key={item.widgetId}
+                  item={item}
+                  isEditing={isEditing}
+                  onChangeSize={(sz) => changeWidgetSize(item.widgetId, sz)}
+                  onChangeColor={(clr) => changeWidgetColor(item.widgetId, clr)}
+                  onRemove={() => removeWidget(item.widgetId)}
+                >
+                  {content}
+                </WidgetWrapper>
+              );
+            })}
           </div>
+        </SortableContext>
+      </DndContext>
 
-          <span className="demo-banner-tag" style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34d399' }}>
-            Safe Runway
-          </span>
-        </div>
-      )}
-
-      {/* Summary KPI Metrics (AdminCN style) */}
-      <div className="kpi-cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        {/* Metric 1: Ending Balance */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Ending Balance ({horizonDays}d)</span>
-            <span className={`kpi-pill ${endingBalanceCents >= safetyReserveCents ? 'positive' : 'warning'}`}>
-              <ArrowUpRight size={12} />
-              <span>Projected</span>
-            </span>
-          </div>
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCents(endingBalanceCents, currency)}</div>
-              <div className="kpi-subtext">Liquidity on day {days.length}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric 2: Total Receipts */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Total Receipts</span>
-            <span className="kpi-pill positive">
-              <TrendingUp size={12} />
-              <span>Inflow</span>
-            </span>
-          </div>
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value" style={{ color: '#34d399' }}>
-                +{formatCents(totalReceiptsCents, currency)}
-              </div>
-              <div className="kpi-subtext">Sum of all incoming receipts</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric 3: Total Expenses */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Total Expenses</span>
-            <span className="kpi-pill neutral">
-              <TrendingDown size={12} />
-              <span>Outflow</span>
-            </span>
-          </div>
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value" style={{ color: '#9A758D' }}>
-                -{formatCents(totalExpensesCents, currency)}
-              </div>
-              <div className="kpi-subtext">Committed disbursements & AP</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Metric 4: Minimum Projected Balance */}
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span className="kpi-title">Minimum Balance</span>
-            <span className={`kpi-pill ${minBalanceCents >= safetyReserveCents ? 'positive' : 'warning'}`}>
-              <Shield size={12} />
-              <span>{minBalanceCents >= safetyReserveCents ? 'Above Buffer' : 'Dip Risk'}</span>
-            </span>
-          </div>
-          <div className="kpi-value-row">
-            <div>
-              <div className="kpi-value">{formatCents(minBalanceCents, currency)}</div>
-              <div className="kpi-subtext">
-                Net horizon flow: {netProjectionCents >= 0 ? '+' : ''}{formatCents(netProjectionCents, currency)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Primary Forecast Chart */}
-      <ForecastChart
-        days={days}
-        safetyReserveCents={safetyReserveCents}
-        currency={currency}
-      />
-
-      {/* Detailed Daily Breakdown Table */}
-      <ForecastTable
-        days={days}
-        safetyReserveCents={safetyReserveCents}
-        currency={currency}
+      {/* Add Widget Drawer Library */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="forecast"
+        pageName="Forecast"
+        currentLayout={activeLayout}
+        onAddWidget={addWidget}
+        onClose={() => setDrawerOpen(false)}
       />
     </div>
   );

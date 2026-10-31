@@ -7,6 +7,12 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { getForecast } from '../../api/forecast';
 import { simulateScenario } from '../../api/scenario';
 import type { ForecastResponse } from '../../types/forecast';
@@ -16,7 +22,16 @@ import { ScenarioComparisonCard } from './ScenarioComparisonCard';
 import { ScenarioChart } from './ScenarioChart';
 import { ScenarioTable } from './ScenarioTable';
 import type { CalculatedScenarioDay } from './scenario-math';
+import {
+  useEditLayout,
+  useCustomizationSensors,
+  EditToolbar,
+  WidgetWrapper,
+  AddWidgetDrawer,
+  type ScenariosWidgetId,
+} from '../customization';
 import '../../styles/scenario.css';
+import '../../styles/customization.css';
 
 const DEFAULT_MODIFIERS: ScenarioModifiers = {
   preset_id: 'delayed_receivables',
@@ -34,6 +49,33 @@ export const ScenarioPage: React.FC = () => {
   const [modifiers, setModifiers] = useState<ScenarioModifiers>(DEFAULT_MODIFIERS);
   const [safetyReserveCents, setSafetyReserveCents] = useState<number>(100000);
   const [retrying, setRetrying] = useState<boolean>(false);
+
+  // Milestone 10.3 Customization
+  const {
+    isEditing,
+    activeLayout,
+    drawerOpen,
+    setDrawerOpen,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    reorderWidgets,
+    changeWidgetSize,
+    changeWidgetColor,
+    removeWidget,
+    addWidget,
+    resetDraftToDefaults,
+  } = useEditLayout('scenarios');
+
+  const sensors = useCustomizationSensors();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(String(active.id), String(over.id));
+    }
+  };
 
   // Load baseline forecast
   const loadBaseline = useCallback(async () => {
@@ -118,14 +160,14 @@ export const ScenarioPage: React.FC = () => {
 
   // Recalculate simulation whenever modifiers or safetyReserveCents change
   const runSimulation = useCallback(
-    async (newModifiers: ScenarioModifiers, newReserveCents: number) => {
+    async (newModifiers: ScenarioModifiers, newReserve: number) => {
       if (!baselineForecast) return;
       try {
         const simRes = await simulateScenario(
           {
             business_id: 'demo_shop_001',
             forecast_days: baselineForecast.days.length,
-            safety_reserve_cents: newReserveCents,
+            safety_reserve_cents: newReserve,
             evidence_ids: ['txn_demo_001'],
             currency: baselineForecast.currency,
           },
@@ -134,7 +176,7 @@ export const ScenarioPage: React.FC = () => {
         );
         setScenarioData(simRes.data);
       } catch (err) {
-        console.error('Scenario simulation computation error:', err);
+        console.error('Failed to run scenario recalculation:', err);
       }
     },
     [baselineForecast]
@@ -145,25 +187,16 @@ export const ScenarioPage: React.FC = () => {
     runSimulation(newModifiers, safetyReserveCents);
   };
 
-  const handleSafetyReserveChange = (newCents: number) => {
-    setSafetyReserveCents(newCents);
-    runSimulation(modifiers, newCents);
+  const handleSafetyReserveChange = (newReserveCents: number) => {
+    setSafetyReserveCents(newReserveCents);
+    runSimulation(modifiers, newReserveCents);
   };
 
   const handleResetToBaseline = () => {
-    const cleanModifiers: ScenarioModifiers = {
-      preset_id: 'custom',
-      delayed_receivables_days: 0,
-      receipts_modifier_pct: 0,
-      expenses_modifier_pct: 0,
-      lump_sum_expense_cents: 0,
-      recurring_payroll_cents: 0,
-    };
-
-    setModifiers(cleanModifiers);
+    setModifiers(DEFAULT_MODIFIERS);
     if (baselineForecast) {
       setSafetyReserveCents(baselineForecast.safety_reserve_cents);
-      runSimulation(cleanModifiers, baselineForecast.safety_reserve_cents);
+      runSimulation(DEFAULT_MODIFIERS, baselineForecast.safety_reserve_cents);
     }
   };
 
@@ -171,6 +204,10 @@ export const ScenarioPage: React.FC = () => {
     setRetrying(true);
     loadBaseline();
   };
+
+  const currency = baselineForecast?.currency || 'USD';
+  const horizonDays = baselineForecast?.days.length || 30;
+  const isBackendUnavailable = !!scenarioData?.backend_unavailable;
 
   // Convert scenarioData.days to CalculatedScenarioDay format
   const calculatedDays: CalculatedScenarioDay[] = useMemo(() => {
@@ -192,11 +229,6 @@ export const ScenarioPage: React.FC = () => {
     });
   }, [scenarioData, baselineForecast, safetyReserveCents]);
 
-  const currency = baselineForecast?.currency || 'USD';
-  const horizonDays = baselineForecast?.days.length || 30;
-  const isBackendUnavailable = !!scenarioData?.backend_unavailable;
-
-  // Uncollected delayed receipts calculation
   const uncollectedDelayedCents = useMemo(() => {
     if (!baselineForecast || modifiers.delayed_receivables_days <= 0) return 0;
     let sum = 0;
@@ -209,34 +241,37 @@ export const ScenarioPage: React.FC = () => {
     return sum;
   }, [baselineForecast, modifiers.delayed_receivables_days]);
 
-  // Loading skeleton
+  // Loading skeleton state
   if (loading && !retrying) {
     return (
       <div className="scenario-page-container">
         <div className="scenario-loading-skeleton">
           <div className="skeleton-bar title-bar" />
-          <div className="skeleton-box controls-box" />
-          <div className="skeleton-box kpi-box" />
+          <div className="skeleton-box control-box" />
           <div className="skeleton-box chart-box" />
         </div>
       </div>
     );
   }
 
-  // Actionable Error State if baseline forecast is missing or invalid
+  // Error state
   if (error && !baselineForecast) {
     return (
       <div className="scenario-page-container">
         <div className="scenario-error-card">
           <AlertTriangle size={36} className="text-danger" />
-          <h3>Baseline Forecast Unavailable</h3>
+          <h3>Baseline Projections Required</h3>
           <p>{error}</p>
-          <div className="error-actions-group">
-            <button type="button" className="empty-primary-btn" onClick={handleRetryConnection}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 16 }}>
+            <button
+              type="button"
+              className="empty-primary-btn"
+              onClick={handleRetryConnection}
+            >
               <RefreshCw size={14} className={retrying ? 'spin' : ''} />
               <span>Retry Baseline Connection</span>
             </button>
-            <Link to="/dashboard/forecast" className="empty-secondary-btn">
+            <Link to="/dashboard/forecast" className="back-nav-btn" style={{ padding: '8px 16px' }}>
               <span>Go to Forecast Dashboard</span>
             </Link>
           </div>
@@ -247,10 +282,88 @@ export const ScenarioPage: React.FC = () => {
 
   const hasScenarioBreach = !!scenarioData?.comparison.scenario_breach_date;
 
+  const renderWidgetContent = (widgetId: ScenariosWidgetId) => {
+    switch (widgetId) {
+      case 'scenarios-backend-notice':
+        return isBackendUnavailable ? (
+          <div className="backend-unavailable-notice" data-testid="backend-unavailable-banner" style={{ margin: 0 }}>
+            <div className="notice-left">
+              <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+              <div>
+                <span className="notice-title">
+                  Backend Service Notice: <code>/api/v1/scenario</code> is Currently Unreachable
+                </span>
+                <p className="notice-desc">
+                  Simulation calculated using the isolated client fallback model (integer cents,
+                  exact calendar day shifts) conforming to <code>contracts/scenario-request.example.json</code>.
+                  Results are explicitly designated as demo projections.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="notice-retry-btn"
+              onClick={handleRetryConnection}
+              disabled={retrying}
+            >
+              <RefreshCw size={12} className={retrying ? 'spin' : ''} />
+              <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
+            </button>
+          </div>
+        ) : null;
+
+      case 'scenarios-controls':
+        return (
+          <ScenarioControls
+            modifiers={modifiers}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+            horizonDays={horizonDays}
+            uncollectedDelayedCents={uncollectedDelayedCents}
+            onModifierChange={handleModifierChange}
+            onSafetyReserveChange={handleSafetyReserveChange}
+            onReset={handleResetToBaseline}
+          />
+        );
+
+      case 'scenarios-comparison-card':
+        return scenarioData ? (
+          <ScenarioComparisonCard
+            comparison={scenarioData.comparison}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        ) : null;
+
+      case 'scenarios-chart':
+        return calculatedDays.length > 0 ? (
+          <ScenarioChart
+            days={calculatedDays}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        ) : null;
+
+      case 'scenarios-table':
+        return calculatedDays.length > 0 ? (
+          <ScenarioTable
+            days={calculatedDays}
+            safetyReserveCents={safetyReserveCents}
+            currency={currency}
+          />
+        ) : null;
+
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = activeLayout.widgets.filter((w) => w.visible);
+
   return (
     <div className="scenario-page-container">
       {/* Top Bar Navigation */}
-      <div className="scenario-top-bar">
+      <div className="scenario-top-bar" style={{ marginBottom: isEditing ? 8 : 16 }}>
         <div className="top-bar-left">
           <Link to="/dashboard/forecast" className="back-nav-btn">
             <ArrowLeft size={14} />
@@ -264,11 +377,24 @@ export const ScenarioPage: React.FC = () => {
         </div>
 
         <div className="top-bar-right">
-          {hasScenarioBreach && (
+          {!isEditing && hasScenarioBreach && (
             <Link to="/dashboard/rescue" className="rescue-cta-link">
               <Sparkles size={13} />
               <span>Breach Detected • Open AI Rescue</span>
             </Link>
+          )}
+
+          {!isEditing && (
+            <EditToolbar
+              isEditing={false}
+              pageName="Scenarios"
+              hasUnsavedChanges={false}
+              onStartEditing={startEditing}
+              onCancelEditing={cancelEditing}
+              onSaveEditing={saveEditing}
+              onOpenAddWidget={() => setDrawerOpen(true)}
+              onResetDefaults={resetDraftToDefaults}
+            />
           )}
 
           <button
@@ -284,72 +410,57 @@ export const ScenarioPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Persistent Visible Notice when Backend Scenario API is Unavailable */}
-      {isBackendUnavailable && (
-        <div className="backend-unavailable-notice" data-testid="backend-unavailable-banner">
-          <div className="notice-left">
-            <AlertTriangle size={18} className="text-warning flex-shrink-0" />
-            <div>
-              <span className="notice-title">
-                Backend Service Notice: <code>/api/v1/scenario</code> is Currently Unreachable
-              </span>
-              <p className="notice-desc">
-                Simulation calculated using the isolated client fallback model (integer cents,
-                exact calendar day shifts) conforming to <code>contracts/scenario-request.example.json</code>.
-                Results are explicitly designated as demo projections.
-              </p>
-            </div>
+      {/* Edit Mode Sticky Banner */}
+      {isEditing && (
+        <EditToolbar
+          isEditing={true}
+          pageName="Scenarios"
+          hasUnsavedChanges={hasUnsavedChanges}
+          onStartEditing={startEditing}
+          onCancelEditing={cancelEditing}
+          onSaveEditing={saveEditing}
+          onOpenAddWidget={() => setDrawerOpen(true)}
+          onResetDefaults={resetDraftToDefaults}
+        />
+      )}
+
+      {/* Dynamic Customizable Widget Grid */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={visibleWidgets.map((w) => w.widgetId)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="customization-dashboard-grid">
+            {visibleWidgets.map((item) => {
+              const content = renderWidgetContent(item.widgetId as ScenariosWidgetId);
+              if (!content) return null;
+
+              return (
+                <WidgetWrapper
+                  key={item.widgetId}
+                  item={item}
+                  isEditing={isEditing}
+                  onChangeSize={(sz) => changeWidgetSize(item.widgetId, sz)}
+                  onChangeColor={(clr) => changeWidgetColor(item.widgetId, clr)}
+                  onRemove={() => removeWidget(item.widgetId)}
+                >
+                  {content}
+                </WidgetWrapper>
+              );
+            })}
           </div>
-          <button
-            type="button"
-            className="notice-retry-btn"
-            onClick={handleRetryConnection}
-            disabled={retrying}
-          >
-            <RefreshCw size={12} className={retrying ? 'spin' : ''} />
-            <span>{retrying ? 'Retrying...' : 'Retry Endpoint'}</span>
-          </button>
-        </div>
-      )}
+        </SortableContext>
+      </DndContext>
 
-      {/* Scenario Presets & Custom Controls */}
-      <ScenarioControls
-        modifiers={modifiers}
-        safetyReserveCents={safetyReserveCents}
-        currency={currency}
-        horizonDays={horizonDays}
-        uncollectedDelayedCents={uncollectedDelayedCents}
-        onModifierChange={handleModifierChange}
-        onSafetyReserveChange={handleSafetyReserveChange}
-        onReset={handleResetToBaseline}
+      {/* Add Widget Drawer */}
+      <AddWidgetDrawer
+        isOpen={drawerOpen}
+        pageId="scenarios"
+        pageName="Scenarios"
+        currentLayout={activeLayout}
+        onAddWidget={addWidget}
+        onClose={() => setDrawerOpen(false)}
       />
-
-      {/* Baseline vs. Scenario Comparison Card */}
-      {scenarioData && (
-        <ScenarioComparisonCard
-          comparison={scenarioData.comparison}
-          safetyReserveCents={safetyReserveCents}
-          currency={currency}
-        />
-      )}
-
-      {/* Comparative Dual-Line Trajectory Chart */}
-      {calculatedDays.length > 0 && (
-        <ScenarioChart
-          days={calculatedDays}
-          safetyReserveCents={safetyReserveCents}
-          currency={currency}
-        />
-      )}
-
-      {/* Daily Divergence Table Breakdown */}
-      {calculatedDays.length > 0 && (
-        <ScenarioTable
-          days={calculatedDays}
-          safetyReserveCents={safetyReserveCents}
-          currency={currency}
-        />
-      )}
     </div>
   );
 };
