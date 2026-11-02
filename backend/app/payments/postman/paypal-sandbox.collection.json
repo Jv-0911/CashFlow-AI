@@ -1,0 +1,291 @@
+{
+  "info": {
+    "name": "CashFlow AI — PayPal Sandbox diagnostics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Member 3 diagnostic templates; no credentials or response examples. Run selected requests with OAuth first in a private local runner session; access_token is a local variable only. Never export or publicly sync an environment containing credentials, tokens, webhook bodies, or payer information. Sending requires an existing human approval recorded in the ledger. The attestation variables do not replace application authorization. Prefer InvoiceService for the application flow; direct PayPal calls do not update its ledger. Check the sponsor Devpost offer before use."
+  },
+  "protocolProfileBehavior": {
+    "strictSSL": true,
+    "followRedirects": false,
+    "disableCookies": true
+  },
+  "item": [
+    {
+      "name": "1. OAuth — token remains runner-local",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+              "if (pm.variables.get('PAYPAL_MODE') !== 'sandbox') stop('Sandbox mode is required');",
+              "const url = pm.variables.replaceIn(pm.request.url.toString());",
+              "if (url !== 'https://api-m.sandbox.paypal.com/v1/oauth2/token') stop('Unexpected request destination');",
+              "pm.variables.unset('access_token');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.unset('access_token');",
+              "pm.test('OAuth succeeded', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const result = pm.response.json(); if (result.token_type !== 'Bearer' || !/^[A-Za-z0-9._~+/=-]{1,4096}$/.test(result.access_token || '') || !Number.isInteger(result.expires_in) || result.expires_in <= 30 || result.expires_in > 86400) throw new Error('Invalid OAuth response'); pm.variables.set('access_token', result.access_token); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{PAYPAL_CLIENT_ID}}",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{PAYPAL_CLIENT_SECRET}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "url": "https://api-m.sandbox.paypal.com/v1/oauth2/token",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Create Sandbox draft — diagnostics only",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+              "if (pm.variables.get('PAYPAL_MODE') !== 'sandbox') stop('Sandbox mode is required');",
+              "const url = pm.variables.replaceIn(pm.request.url.toString());",
+              "if (url !== 'https://api-m.sandbox.paypal.com/v2/invoicing/invoices') stop('Unexpected request destination');",
+              "if (!pm.variables.get('access_token')) stop('Run OAuth successfully first in this runner session');",
+              "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(pm.variables.get('create_request_id') || '')) stop('Set a stable UUID request ID');",
+              "if (pm.variables.get('ledger_approval_confirmed') !== 'true' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(pm.variables.get('approval_event_id') || '') || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(pm.variables.get('ledger_entry_id') || '')) stop('Review the recorded human approval first');",
+              "if (!/^[A-Za-z0-9_-]{1,25}$/.test(pm.variables.get('invoice_number') || '') || !/^[^\\s@\"\\\\]+@[^\\s@\"\\\\]+\\.[^\\s@\"\\\\]+$/.test(pm.variables.get('SANDBOX_PAYER_EMAIL') || '')) stop('Invalid diagnostic invoice fields');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{create_request_id}}"
+          }
+        ],
+        "url": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"detail\": {\n    \"invoice_number\": \"{{invoice_number}}\",\n    \"reference\": \"{{ledger_entry_id}}\",\n    \"currency_code\": \"USD\"\n  },\n  \"primary_recipients\": [\n    {\n      \"billing_info\": {\n        \"email_address\": \"{{SANDBOX_PAYER_EMAIL}}\"\n      }\n    }\n  ],\n  \"items\": [\n    {\n      \"name\": \"Approved Sandbox recovery\",\n      \"quantity\": \"1\",\n      \"unit_amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"0.01\"\n      }\n    }\n  ],\n  \"configuration\": {\n    \"partial_payment\": {\n      \"allow_partial_payment\": false\n    },\n    \"allow_tip\": false\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "3. Send Sandbox invoice — recorded approval required",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+              "if (pm.variables.get('PAYPAL_MODE') !== 'sandbox') stop('Sandbox mode is required');",
+              "const url = pm.variables.replaceIn(pm.request.url.toString());",
+              "const identity = pm.variables.get('invoice_id');",
+              "if (!/^INV2-[A-Z0-9]{4}(?:-[A-Z0-9]{4}){3}$/.test(identity || '')) stop('Invalid invoice ID');",
+              "if (url !== 'https://api-m.sandbox.paypal.com/v2/invoicing/invoices/' + identity + '/send') stop('Unexpected request destination');",
+              "if (!pm.variables.get('access_token')) stop('Run OAuth successfully first in this runner session');",
+              "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(pm.variables.get('send_request_id') || '')) stop('Set a stable UUID request ID');",
+              "if (pm.variables.get('ledger_approval_confirmed') !== 'true' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(pm.variables.get('approval_event_id') || '') || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(pm.variables.get('ledger_entry_id') || '')) stop('Review the recorded human approval first');",
+              "if (pm.variables.get('approved_invoice_id') !== identity) stop('Approval must match this invoice');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{send_request_id}}"
+          }
+        ],
+        "url": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/{{invoice_id}}/send",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"send_to_recipient\":true,\"send_to_invoicer\":false}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "4. Fetch current Sandbox invoice",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+              "if (pm.variables.get('PAYPAL_MODE') !== 'sandbox') stop('Sandbox mode is required');",
+              "const url = pm.variables.replaceIn(pm.request.url.toString());",
+              "const identity = pm.variables.get('invoice_id');",
+              "if (!/^INV2-[A-Z0-9]{4}(?:-[A-Z0-9]{4}){3}$/.test(identity || '')) stop('Invalid invoice ID');",
+              "if (url !== 'https://api-m.sandbox.paypal.com/v2/invoicing/invoices/' + identity) stop('Unexpected request destination');",
+              "if (!pm.variables.get('access_token')) stop('Run OAuth successfully first in this runner session');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          }
+        ],
+        "url": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/{{invoice_id}}"
+      }
+    },
+    {
+      "name": "5. Verify webhook signature",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+              "if (pm.variables.get('PAYPAL_MODE') !== 'sandbox') stop('Sandbox mode is required');",
+              "const url = pm.variables.replaceIn(pm.request.url.toString());",
+              "if (url !== 'https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature') stop('Unexpected request destination');",
+              "if (!pm.variables.get('access_token')) stop('Run OAuth successfully first in this runner session');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          }
+        ],
+        "url": "https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"auth_algo\": \"{{auth_algo}}\",\n  \"cert_url\": \"{{cert_url}}\",\n  \"transmission_id\": \"{{transmission_id}}\",\n  \"transmission_sig\": \"{{transmission_sig}}\",\n  \"transmission_time\": \"{{transmission_time}}\",\n  \"webhook_id\": \"{{PAYPAL_WEBHOOK_ID}}\",\n  \"webhook_event\": {{webhook_event}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
