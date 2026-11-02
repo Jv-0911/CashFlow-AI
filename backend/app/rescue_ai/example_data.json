@@ -1,0 +1,669 @@
+[
+  {
+    "scenario": "shortage",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": "2026-10-27",
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 120000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 60000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Projected cash may first fall below the safety reserve on 2026-10-27. The lowest supplied projected balance is USD 600.00 on 2026-10-27, USD 400.00 below the reserve. Through that date, supplied projected expenses total USD 800.00 and projected receipts total USD 200.00. Individual causes cannot be established without linked source records.",
+      "risk_level": "high",
+      "evidence_ids": [
+        "forecast_demo_001",
+        "INV-DEMO-104",
+        "WAGES-DEMO-001"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "follow_up:INV-DEMO-104",
+          "title": "Review and follow up on overdue invoice INV-DEMO-104",
+          "estimated_impact_cents": 80000,
+          "assumptions": [
+            "The customer pays the outstanding amount; timing and collection are uncertain.",
+            "This is potential invoice collection, not guaranteed or incremental forecast cash.",
+            "A late receipt cannot resolve an earlier shortage; use the scenario engine to assess timing."
+          ],
+          "explanation": "The supplied unpaid invoice has USD 800.00 outstanding. Review its status and approve any customer contact.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "INV-DEMO-104"
+          ],
+          "currency": "USD",
+          "priority": 1,
+          "requires_approval": true
+        },
+        {
+          "action_id": "review_expense:WAGES-DEMO-001",
+          "title": "Review upcoming expense WAGES-DEMO-001",
+          "estimated_impact_cents": null,
+          "assumptions": [
+            "Changing a payment date requires approval and may require agreement with the payee.",
+            "No saving or deferral impact is calculated without the financial scenario engine.",
+            "The supplied expense has not been linked to a specific forecast event."
+          ],
+          "explanation": "A supplied projected expense of USD 800.00 is dated 2026-10-27. Consider a scenario to assess an approved change in timing.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "WAGES-DEMO-001"
+          ],
+          "currency": "USD",
+          "priority": 2,
+          "requires_approval": true
+        }
+      ],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "safe",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": null,
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 240000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 180000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "No reserve breach is shown in the assessed dates. The lowest projected balance is USD 1,800.00. This does not guarantee sufficient cash outside the supplied forecast or if receipts are late.",
+      "risk_level": "low",
+      "evidence_ids": [
+        "forecast_demo_001"
+      ],
+      "recommended_actions": [],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "reserve_boundary",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": null,
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 160000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 100000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "No reserve breach is shown in the assessed dates, but the lowest projected balance equals the safety reserve, leaving no margin above it.",
+      "risk_level": "medium",
+      "evidence_ids": [
+        "forecast_demo_001",
+        "INV-DEMO-104",
+        "WAGES-DEMO-001"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "follow_up:INV-DEMO-104",
+          "title": "Review and follow up on overdue invoice INV-DEMO-104",
+          "estimated_impact_cents": 80000,
+          "assumptions": [
+            "The customer pays the outstanding amount; timing and collection are uncertain.",
+            "This is potential invoice collection, not guaranteed or incremental forecast cash.",
+            "A late receipt cannot resolve an earlier shortage; use the scenario engine to assess timing."
+          ],
+          "explanation": "The supplied unpaid invoice has USD 800.00 outstanding. Review its status and approve any customer contact.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "INV-DEMO-104"
+          ],
+          "currency": "USD",
+          "priority": 1,
+          "requires_approval": true
+        },
+        {
+          "action_id": "review_expense:WAGES-DEMO-001",
+          "title": "Review upcoming expense WAGES-DEMO-001",
+          "estimated_impact_cents": null,
+          "assumptions": [
+            "Changing a payment date requires approval and may require agreement with the payee.",
+            "No saving or deferral impact is calculated without the financial scenario engine.",
+            "The supplied expense has not been linked to a specific forecast event."
+          ],
+          "explanation": "A supplied projected expense of USD 800.00 is dated 2026-10-27. Consider a scenario to assess an approved change in timing.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "WAGES-DEMO-001"
+          ],
+          "currency": "USD",
+          "priority": 2,
+          "requires_approval": true
+        }
+      ],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "insufficient_evidence",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": null,
+        "days": [],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Insufficient evidence: no current or future forecast days were supplied.",
+      "risk_level": "unknown",
+      "evidence_ids": [
+        "forecast_demo_001"
+      ],
+      "recommended_actions": [],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "stale",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-28",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": "2026-10-27",
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 120000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 60000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Insufficient evidence: no current or future forecast days were supplied.",
+      "risk_level": "unknown",
+      "evidence_ids": [
+        "forecast_demo_001"
+      ],
+      "recommended_actions": [],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "paid_invoice",
+    "is_demo": true,
+    "provider_mode": "disabled",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": "2026-10-27",
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 120000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 60000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 0,
+          "due_date": "2026-10-20",
+          "status": "paid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Projected cash may first fall below the safety reserve on 2026-10-27. The lowest supplied projected balance is USD 600.00 on 2026-10-27, USD 400.00 below the reserve. Through that date, supplied projected expenses total USD 800.00 and projected receipts total USD 200.00. Individual causes cannot be established without linked source records.",
+      "risk_level": "high",
+      "evidence_ids": [
+        "forecast_demo_001",
+        "WAGES-DEMO-001"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "review_expense:WAGES-DEMO-001",
+          "title": "Review upcoming expense WAGES-DEMO-001",
+          "estimated_impact_cents": null,
+          "assumptions": [
+            "Changing a payment date requires approval and may require agreement with the payee.",
+            "No saving or deferral impact is calculated without the financial scenario engine.",
+            "The supplied expense has not been linked to a specific forecast event."
+          ],
+          "explanation": "A supplied projected expense of USD 800.00 is dated 2026-10-27. Consider a scenario to assess an approved change in timing.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "WAGES-DEMO-001"
+          ],
+          "currency": "USD",
+          "priority": 1,
+          "requires_approval": true
+        }
+      ],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "provider_failure",
+    "is_demo": true,
+    "provider_mode": "simulated_failure",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": "2026-10-27",
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 120000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 60000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Projected cash may first fall below the safety reserve on 2026-10-27. The lowest supplied projected balance is USD 600.00 on 2026-10-27, USD 400.00 below the reserve. Through that date, supplied projected expenses total USD 800.00 and projected receipts total USD 200.00. Individual causes cannot be established without linked source records.",
+      "risk_level": "high",
+      "evidence_ids": [
+        "forecast_demo_001",
+        "INV-DEMO-104",
+        "WAGES-DEMO-001"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "follow_up:INV-DEMO-104",
+          "title": "Review and follow up on overdue invoice INV-DEMO-104",
+          "estimated_impact_cents": 80000,
+          "assumptions": [
+            "The customer pays the outstanding amount; timing and collection are uncertain.",
+            "This is potential invoice collection, not guaranteed or incremental forecast cash.",
+            "A late receipt cannot resolve an earlier shortage; use the scenario engine to assess timing."
+          ],
+          "explanation": "The supplied unpaid invoice has USD 800.00 outstanding. Review its status and approve any customer contact.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "INV-DEMO-104"
+          ],
+          "currency": "USD",
+          "priority": 1,
+          "requires_approval": true
+        },
+        {
+          "action_id": "review_expense:WAGES-DEMO-001",
+          "title": "Review upcoming expense WAGES-DEMO-001",
+          "estimated_impact_cents": null,
+          "assumptions": [
+            "Changing a payment date requires approval and may require agreement with the payee.",
+            "No saving or deferral impact is calculated without the financial scenario engine.",
+            "The supplied expense has not been linked to a specific forecast event."
+          ],
+          "explanation": "A supplied projected expense of USD 800.00 is dated 2026-10-27. Consider a scenario to assess an approved change in timing.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "WAGES-DEMO-001"
+          ],
+          "currency": "USD",
+          "priority": 2,
+          "requires_approval": true
+        }
+      ],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records.",
+        "AI analysis was unavailable or rejected; deterministic analysis is shown."
+      ],
+      "source": "deterministic",
+      "is_demo": true
+    }
+  },
+  {
+    "scenario": "ai_selection",
+    "is_demo": true,
+    "provider_mode": "simulated_selection",
+    "request": {
+      "as_of_date": "2026-10-26",
+      "forecast_id": "forecast_demo_001",
+      "forecast": {
+        "currency": "USD",
+        "safety_reserve_cents": 100000,
+        "first_reserve_breach_date": "2026-10-27",
+        "days": [
+          {
+            "date": "2026-10-27",
+            "opening_balance_cents": 120000,
+            "receipts_cents": 20000,
+            "expenses_cents": 80000,
+            "closing_balance_cents": 60000
+          }
+        ],
+        "is_demo": true,
+        "disclaimer": "Fictional demo records; no bank, PayPal or live AI connection."
+      },
+      "invoices": [
+        {
+          "invoice_id": "INV-DEMO-104",
+          "currency": "USD",
+          "outstanding_amount_cents": 80000,
+          "due_date": "2026-10-20",
+          "status": "unpaid"
+        }
+      ],
+      "transactions": [
+        {
+          "transaction_id": "WAGES-DEMO-001",
+          "currency": "USD",
+          "amount_cents": 80000,
+          "date": "2026-10-27",
+          "direction": "expense",
+          "status": "projected",
+          "discretionary": false
+        }
+      ]
+    },
+    "response": {
+      "summary": "Projected cash may first fall below the safety reserve on 2026-10-27. The lowest supplied projected balance is USD 600.00 on 2026-10-27, USD 400.00 below the reserve. Through that date, supplied projected expenses total USD 800.00 and projected receipts total USD 200.00. Individual causes cannot be established without linked source records. The supplied forecast indicates a potential reserve breach. Overdue unpaid invoices provide possible follow-up actions. Customer collection and its timing remain uncertain; proposed recovery is not received cash. Upcoming projected expenses can be reviewed with the scenario engine.",
+      "risk_level": "high",
+      "evidence_ids": [
+        "forecast_demo_001",
+        "INV-DEMO-104",
+        "WAGES-DEMO-001"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "review_expense:WAGES-DEMO-001",
+          "title": "Review upcoming expense WAGES-DEMO-001",
+          "estimated_impact_cents": null,
+          "assumptions": [
+            "Changing a payment date requires approval and may require agreement with the payee.",
+            "No saving or deferral impact is calculated without the financial scenario engine.",
+            "The supplied expense has not been linked to a specific forecast event."
+          ],
+          "explanation": "A supplied projected expense of USD 800.00 is dated 2026-10-27. Consider a scenario to assess an approved change in timing.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "WAGES-DEMO-001"
+          ],
+          "currency": "USD",
+          "priority": 1,
+          "requires_approval": true
+        },
+        {
+          "action_id": "follow_up:INV-DEMO-104",
+          "title": "Review and follow up on overdue invoice INV-DEMO-104",
+          "estimated_impact_cents": 80000,
+          "assumptions": [
+            "The customer pays the outstanding amount; timing and collection are uncertain.",
+            "This is potential invoice collection, not guaranteed or incremental forecast cash.",
+            "A late receipt cannot resolve an earlier shortage; use the scenario engine to assess timing."
+          ],
+          "explanation": "The supplied unpaid invoice has USD 800.00 outstanding. Review its status and approve any customer contact.",
+          "evidence_ids": [
+            "forecast_demo_001",
+            "INV-DEMO-104"
+          ],
+          "currency": "USD",
+          "priority": 2,
+          "requires_approval": true
+        }
+      ],
+      "currency": "USD",
+      "assumptions": [
+        "Analysis covers only the supplied forecast dates on or after the as-of date.",
+        "Projected receipts and expenses are uncertain; no payment is verified by this analysis.",
+        "Evidence records are not added to the forecast again; actions do not change its balances.",
+        "This analysis uses demo data, not live business records.",
+        "AI selected explanation points and action order; calculations and financial facts remain deterministic.",
+        "DEMO: the provider selection was simulated locally; no AI model was called."
+      ],
+      "source": "ai",
+      "is_demo": true
+    }
+  }
+]
