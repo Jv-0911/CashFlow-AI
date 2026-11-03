@@ -1,5 +1,13 @@
 # PayPal and recovery ledger implementation status
 
+Integrated release (2026-11-03): the shared API now supplies administrator
+authentication, CSRF-protected approval/invoice commands, server-owned payer
+resolution, and periodic reconciliation. The React website consumes the existing
+Member 3 serializers and verification services. See the current
+[integration report](../../../docs/INTEGRATION_REPORT.md) and
+[API notes](../api/README.md). Historical standalone reports below describe
+earlier stages; live Sandbox acceptance is still skipped by the user's choice.
+
 Member 3 only. The PayPal Sandbox client, approved invoice create/send flow,
 fresh-fetch verification, reconciliation, and optional webhook handler are
 implemented. All automated offline checks use synthetic data and scripted
@@ -88,8 +96,9 @@ service callback commits the unique claim and supplies its saved request ID.
 Once claimed, uncertainty never permits redispatch. Older claims retain their
 conservative recovery policy.
 
-Only USD is supported. No HTTP routes, authentication system, scheduled worker,
-or deployment entrypoint are included. Python process access and database-admin
+Only USD is supported. This module owns no HTTP routes or authentication system;
+the shared API now supplies them, its scheduler, and the deployment entrypoint.
+Python process access and database-admin
 access are trusted boundaries; the hash chain is not protection against an
 administrator rewriting the entire database. Independently stored checkpoints
 and backups remain deployment duties.
@@ -110,16 +119,16 @@ this module does not change global logging settings.
 - [x] Signature verification before webhook deduplication and fresh invoice GET.
 - [x] Fixed sanitized errors; tokens in memory; no full bodies or payer emails
   logged or persisted by these modules; secret-free examples.
-- [ ] Member 4 reviews contract/serialization, authenticates and authorizes every
-  operation, and binds payer references to authorized server records.
+- [x] Shared integration authenticates and authorizes financial operations,
+  requires explicit approval, and resolves the test payer from server configuration.
 - [x] Root ignore rules added and tested, including nested paths and detection
   of already tracked ignored files. Source/template files remain visible.
 - [x] Offline SQLite backup/fresh-process recovery drill, including WAL data,
   duplicate receipts, uncertain claims and stale/empty/corrupt backup checks.
   See [the recovery runbook](../ledger/RECOVERY_RUNBOOK.md); this does not complete
   the hosted persistence and restore acceptance below.
-- [ ] Shared owner verifies ignore rules in the destination repository and scans
-  its working tree and entire Git history before merging. No history exists here.
+- [x] Destination ignore protections verified; staged changes and fetched Git
+  history scanned with Gitleaks. No leaks were detected by that scan.
 - [ ] Execute opt-in Sandbox create/send, manually pay, verify, and retain results
   without secrets or personal data; run shared backend tests after integration.
 - [ ] Provision persistent storage, backup/restore checks, external checkpoints,
@@ -141,6 +150,11 @@ this module does not change global logging settings.
 | PayPal public API documentation | Response schemas and signature/idempotency behavior | Documentation only |
 | Postman collection files | Five diagnostic templates; guards tested locally, no actual Postman/PayPal run | None so far |
 | Render public documentation | Persistent-storage and environment-variable handoff | No deployment |
+| React, TypeScript, Vite, Zod | Website and strict response validation in shared frontend | No credential handling in browser |
+| FastAPI, Uvicorn, python-dotenv | Shared authenticated API and private configuration | Existing Sandbox client only |
+| Playwright / local Chrome | End-to-end browser tests against isolated fake-provider servers | None |
+| Gitleaks / pip-audit / npm audit | Redacted history/staged-secret scans and dependency checks | None |
+| Prettier | Format new frontend source and tests for team maintenance | None |
 
 APIMatic was evaluated and not adopted: the five required operations are already
 covered by a small handwritten wrapper; generation would still need the same
