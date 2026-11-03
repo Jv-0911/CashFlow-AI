@@ -4,10 +4,8 @@ Exposes:
 - GET /health: Simple JSON status check
 - GET /api/v1/health: Versioned status check
 - GET /api/v1/forecast/demo: Clearly labeled demo forecast matching contracts/forecast-response.example.json
-- GET /api/v1/forecast: Forward-compatible alias returning the demo forecast with explicit disclaimer
-
-Business calculations are kept strictly out of the API layer, awaiting
-implementation of backend/app/forecast by Member 1 (Financial Engine Developer).
+Actual financial-engine routes are composed in application.py. This legacy
+fixture remains available for contract testing and an above-reserve example.
 """
 
 from fastapi import APIRouter, Response
@@ -45,8 +43,7 @@ DEMO_FORECAST_FIXTURE = ForecastResponse(
     ],
     is_demo=True,
     disclaimer=(
-        "DEMO DATA: Real forecasting engine is pending implementation "
-        "by Member 1 (Financial Engine Developer) in backend/app/forecast/."
+        "DEMO DATA: Static contract fixture. Use /api/v1/forecast for the integrated calculation engine."
     ),
 )
 
@@ -55,7 +52,7 @@ DEMO_FORECAST_FIXTURE = ForecastResponse(
 @router.get("/api/v1/health", response_model=HealthResponse, tags=["Health"])
 def get_health() -> HealthResponse:
     """Return application health status."""
-    return HealthResponse(status="ok", version="0.1.0")
+    return HealthResponse(status="ok", version="1.0.0")
 
 
 @router.get(
@@ -68,23 +65,7 @@ def get_demo_forecast(response: Response) -> ForecastResponse:
     """Return a clearly labeled demo forecast conforming to the shared response contract.
 
     Notice: Does not perform business calculations. Serves as a static demo fixture
-    for integration testing and frontend verification until Member 1 completes the
-    calculation engine in backend/app/forecast.
-    """
-    response.headers["X-Demo-Data"] = "true"
-    return DEMO_FORECAST_FIXTURE
-
-
-@router.get(
-    "/api/v1/forecast",
-    response_model=ForecastResponse,
-    tags=["Forecast"],
-    summary="Get forecast (returns demo fixture until engine is implemented)",
-)
-def get_forecast(response: Response) -> ForecastResponse:
-    """Return the forecast response.
-
-    Returns the clearly labeled demo forecast fixture with header indication.
+    for contract testing; the calculation engine is available at /api/v1/forecast.
     """
     response.headers["X-Demo-Data"] = "true"
     return DEMO_FORECAST_FIXTURE

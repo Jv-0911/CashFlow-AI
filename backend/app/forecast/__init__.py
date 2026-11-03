@@ -12,7 +12,6 @@ from .interfaces import (
     CovariateDiagnostics, ForecastIssueRequest, KnownAheadCovariate, PreparationRequest,
     PreparedHistory, covariate_diagnostics, issue_forecast, prepare_history,
 )
-from .monitoring import LocalForecastMonitor
 from .monitoring_schemas import ActualObservation, IssuedCashForecast, MonitoringConfig, MonitoringReport
 from .persistence_schemas import DirectionModelMetadata, ModelMetadata, RegistryState
 from .reconciliation import reconcile_history
@@ -44,7 +43,7 @@ __all__ = [
 def __getattr__(name):
     # Keep CSV, baselines and financial calculations usable without importing sklearn.
     from importlib import import_module
-    modules = {"LocalModelRegistry": ".persistence", "retrain_model": ".retraining",
+    modules = {"LocalForecastMonitor": ".monitoring", "LocalModelRegistry": ".persistence", "retrain_model": ".retraining",
         "TrainedForecastModel": ".trained", "forecast_trained_model": ".trained", "train_forecast_model": ".trained"}
     if name not in modules:
         raise AttributeError(name)

@@ -15,5 +15,5 @@ def anyio_backend():
 async def client():
     """Asynchronous HTTPX test client configured with ASGI transport."""
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with AsyncClient(transport=transport, base_url="http://127.0.0.1:8000") as client:
         yield client
