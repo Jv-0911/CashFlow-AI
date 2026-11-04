@@ -40,6 +40,8 @@ One worker and one instance are required because sessions, throttles and reconci
 
 ## Hosted acceptance (performed by you)
 
+Before deployment, require a green **Integrated checks** run for your selected commit. The workflow builds the backend image and tests startup as its non-root user, then replaces the container and verifies that a synthetic proposal survives on its named volume with intact ledger integrity and zero recovered cash. This checks the image; you must still verify your hosting provider's actual disk permissions and persistence.
+
 - Open the production frontend and refresh `/dashboard/forecast` directly; assets and deep links must work.
 - Sign in. Confirm `/api/v1/session` is authenticated, cookies are Secure/HttpOnly/SameSite=Strict, and no API response is cached. The proxy must preserve browser Origin, cookies and `X-CSRF-Token`; do not weaken server checks if forwarding is misconfigured.
 - Check 7/14/30 day forecasts, AI Rescue, scenarios, analytics, themes and saved widget layouts. All business data is explicitly fictional.

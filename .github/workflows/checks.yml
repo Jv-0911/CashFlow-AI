@@ -45,3 +45,27 @@ jobs:
       - run: npm run test:e2e
         working-directory: frontend
       - run: docker build -t cashflow-ai:check .
+      - name: Check container startup and ledger persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f cashflow-check >/dev/null 2>&1 || true; docker volume rm cashflow-check-data >/dev/null 2>&1 || true' EXIT
+          docker volume create cashflow-check-data
+          start_container() {
+            docker run --detach --name cashflow-check --network none \
+              --mount type=volume,src=cashflow-check-data,dst=/app/data \
+              -e CASHFLOW_PAYPAL_ENABLED=false -e CASHFLOW_AI_ENABLED=false cashflow-ai:check
+            for attempt in {1..30}; do
+              if docker exec cashflow-check python -c "import json, urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2))['status'] == 'ok'" >/dev/null 2>&1; then
+                return 0
+              fi
+              sleep 2
+            done
+            docker logs cashflow-check
+            return 1
+          }
+          start_container
+          docker exec cashflow-check python -c "import os; from backend.app.ledger.service import LedgerService; assert os.getuid() == 10001; ledger = LedgerService('/app/data/ledger.db'); ledger.propose(idempotency_key='container-smoke-proposal', amount_cents=123, currency='USD'); ledger.verify_integrity()"
+          docker rm -f cashflow-check
+          start_container
+          docker exec cashflow-check python -c "from backend.app.ledger.service import LedgerService; from backend.app.ledger.models import State; ledger = LedgerService('/app/data/ledger.db'); entries = ledger.list_entries(); assert len(entries) == 1; assert entries[0].entry.amount_cents == 123; assert entries[0].state == State.PROPOSED; assert ledger.recovered_cash() == {'USD': 0}; ledger.verify_integrity()"

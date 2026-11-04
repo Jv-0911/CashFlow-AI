@@ -43,9 +43,9 @@ The retained landing-page Three.js chunk produces a non-fatal size warning (abou
 
 ## Workflow evidence and deployment limits
 
-At audit time GitHub's API exposed one successful historical workflow, [run 41675969397](https://github.com/Jv-0911/CashFlow-AI/actions/runs/41675969397), for `cfdc7e8`. No run was available for the restored release `a9d2c4c`. That old green run is **not** evidence that the current integrated release passed GitHub Actions. GitHub reported degraded Git Operations and Actions on [its status page](https://www.githubstatus.com/) during this audit. A successful push must be distinguished from a completed workflow.
+GitHub initially exposed only an older successful workflow while reporting degraded Git Operations and Actions. The final audit commit `a7940f5` subsequently passed [run 41816086101](https://github.com/Jv-0911/CashFlow-AI/actions/runs/41816086101): backend tests, Postman guards, frontend installation/build/tests, Chromium browser tests and Docker build all succeeded. This is current integrated-code evidence, not the old workflow's result.
 
-A Docker engine was unavailable locally, so the current container build remains unverified until the workflow's Docker step or an equivalent host build completes. No website was deployed or tested against a public hosting URL.
+A Docker engine was unavailable locally; GitHub verified the container build. The workflow additionally includes a container smoke check: with external networking disabled, start as UID 10001, write a synthetic proposal through the ledger service, replace the container using the same named volume, and require the proposal, zero recovered cash and ledger integrity to survive. Its result must be checked on the workflow run containing that new step. No website was deployed or tested against a public hosting URL.
 
 Before public use, follow [DEPLOYMENT.md](DEPLOYMENT.md):
 
