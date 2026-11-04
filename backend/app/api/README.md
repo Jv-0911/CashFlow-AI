@@ -10,6 +10,7 @@ All money is integer USD cents, dates are ISO 8601, and all business fixtures ar
 | `DELETE /api/v1/session` | Sign out; session, Origin and CSRF required |
 | `GET /api/v1/dashboard` | Actual engine output and fictional source records; private ledger totals only after sign-in |
 | `GET /api/v1/forecast?horizon_days=14` | Actual forecast engine; 1–30 days; original fixture retained at `/forecast/demo` |
+| `POST /api/v1/scenario` | Adapter for Member 4 controls: percentages, receipt delay, lump sum and recurring payroll; balances calculated by Member 1; hypothetical only |
 | `POST /api/v1/scenarios` | `event_id`, `delay_days` (1–30), optional `horizon_days`; move a server-known expense; no baseline mutation |
 | `POST /api/v1/rescue/analyze?horizon_days=14` | Server-owned forecast/evidence; deterministic fallback or explicitly configured AI |
 | `GET /api/v1/ledger`, `/api/v1/invoices` | Authenticated, integrity-checked ledger serializer |
@@ -31,3 +32,11 @@ Read-only scenarios require Origin too. JSON bodies are bounded to 64 KiB (256 K
 Forecast receipts are assumptions in a fixed synthetic snapshot. Verified recovery is displayed separately and is never added a second time to forecast cash. Rescue analysis excludes ledger states that cannot safely map to Member 2's schema and suppresses collection advice for verified paid items. Partial/offline/refunded results cannot become verified cash. No model is in the payment verification path.
 
 The payer reference `demo_payer` is resolved privately by the server. It maps only to the configured Sandbox test payer; do not change that association for an existing approved entry. This demo does not accept arbitrary customer emails or external invoice IDs from a browser.
+
+## Member 4 frontend and split hosting
+
+The `frontend` branch supplies the UI. Browser adapters map uppercase Member 3 ledger states without merging partial/offline/refunded states into verified completion. Empty ledgers are valid; malformed responses and outages never become demo payments. Only server totals that agree with verified entries are displayed.
+
+The forecast response exposes daily integer-cent values plus `details.forecast_id`; internal floating-point model-error statistics stay in Member 1's Python results rather than the dashboard response. Scenario controls translate to `calculate_balances`; they never modify baseline or ledger data. The existing expense-move endpoint is retained.
+
+`CASHFLOW_PUBLIC_ORIGIN` is the exact Vercel HTTPS origin. `CASHFLOW_BACKEND_HOST` adds only the exact backend DNS name to trusted hosts. The Vercel configuration proxies `/api/*` and `/health` before SPA routes, preserving browser Origin, cookies and CSRF headers. No CORS wildcard or client-held payment credential is introduced. Public deployment acceptance must verify this forwarding behavior on the actual hosts.

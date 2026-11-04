@@ -106,7 +106,8 @@ def forecast_view(result):
                   'receipts_cents': d.projected_receipts_cents, 'expenses_cents': d.projected_payments_cents,
                   'closing_balance_cents': d.projected_closing_balance_cents} for d in result.days],
         'is_demo': True, 'disclaimer': 'Synthetic business forecast, not a bank statement or confirmed cash.',
-        'details': result.model_dump(mode='json')}
+        # The dashboard needs cash flows, not internal floating-point model-error statistics.
+        'details': {'forecast_id': result.forecast_id}}
 
 
 @router.get('/session')

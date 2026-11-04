@@ -302,3 +302,8 @@ htmlcov/
 # Local operating-system metadata.
 .DS_Store
 Thumbs.db
+
+# Member 4's checked-in synthetic UI fixture, not private ledger storage.
+!/frontend/src/data/
+/frontend/src/data/*
+!/frontend/src/data/demo-fixtures.ts

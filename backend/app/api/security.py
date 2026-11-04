@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 import hashlib
 import hmac
 import os
+import re
 import secrets
 from threading import Lock
 import time
@@ -19,8 +20,11 @@ class Settings:
     paypal_enabled: bool = False
     ai_enabled: bool = False
     reconciliation_seconds: int = 60
+    backend_host: str = ''
 
     def __post_init__(self):
+        if self.backend_host and (len(self.backend_host) > 253 or re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*', self.backend_host) is None):
+            raise ValueError('Configure an exact backend hostname without scheme, port, or wildcard.')
         url = urlsplit(self.origin)
         local = url.hostname in {'localhost', '127.0.0.1', '::1'}
         if (url.scheme not in {'http', 'https'} or not url.netloc or url.username
@@ -54,7 +58,8 @@ class Settings:
         return cls(password=os.environ.get('CASHFLOW_ADMIN_PASSWORD', ''),
                    origin=os.environ.get('CASHFLOW_PUBLIC_ORIGIN', 'http://127.0.0.1:8000'),
                    db_path=os.environ.get('LEDGER_DB_PATH', 'data/ledger.db'),
-                   paypal_enabled=enabled == 'true', ai_enabled=ai_enabled == 'true')
+                   paypal_enabled=enabled == 'true', ai_enabled=ai_enabled == 'true',
+                   backend_host=os.environ.get('CASHFLOW_BACKEND_HOST', ''))
 
     @property
     def secure_cookie(self):

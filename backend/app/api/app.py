@@ -97,7 +97,7 @@ def create_app(settings=None, *, ledger=None, payments=None):
         response.headers.update({
             'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
             'X-Frame-Options': 'DENY', 'Cache-Control': 'no-store',
-            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
             'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
             'X-Request-ID': request.state.request_id,
         })
@@ -106,13 +106,27 @@ def create_app(settings=None, *, ledger=None, payments=None):
         return response
 
     app.add_middleware(RequestLimits)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[urlsplit(settings.origin).hostname, 'localhost', '127.0.0.1'])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[urlsplit(settings.origin).hostname, 'localhost', '127.0.0.1'] + ([settings.backend_host] if settings.backend_host else []))
     app.include_router(demo_router)
     app.include_router(application_router)
+    from .frontend_adapter import router as frontend_router
+    app.include_router(frontend_router)
     dist = Path(__file__).resolve().parents[3] / 'frontend' / 'dist'
     if dist.is_dir():
         app.mount('/assets', StaticFiles(directory=dist/'assets'), name='assets')
 
+    @app.get('/favicon.svg', include_in_schema=False)
+    def favicon():
+        if not (dist/'favicon.svg').is_file():
+            raise StarletteHTTPException(404)
+        return FileResponse(dist/'favicon.svg')
+
+    @app.get('/login', include_in_schema=False)
+    @app.get('/signup', include_in_schema=False)
+    @app.get('/verify-email', include_in_schema=False)
+    @app.get('/forgot-password', include_in_schema=False)
+    @app.get('/dashboard', include_in_schema=False)
+    @app.get('/dashboard/{page:path}', include_in_schema=False)
     @app.get('/', include_in_schema=False)
     def index():
         if not (dist/'index.html').is_file():

@@ -2,26 +2,52 @@
 
 The integration does not create a hosting account or deploy automatically. Before using Render or another sponsor, check its Devpost page for this hackathon's actual offer.
 
-## Build and serve
+## Vercel frontend
 
-Use the checked-in multi-stage Dockerfile, or install `backend/requirements.txt`, run `npm ci && npm run build` inside `frontend`, and start from the repository root:
+1. Import `Jv-0911/CashFlow-AI`, production branch `main`.
+2. Set **Root Directory** to `frontend`, framework **Vite**, Node **24.x**, install `npm ci`, build `npm run build`, output `dist`.
+3. Set `CASHFLOW_BACKEND_URL` to the persistent backend's exact HTTPS origin, for example `https://api.example.test` (replace with your real host). No path, query, port, credentials, or trailing API suffix. This is a routing value, not a secret. `frontend/vercel.ts` validates it at configuration time.
+4. Give the frontend a stable production URL. Set that exact origin on the backend. Do not grant wildcard preview origins access to the payment backend; use an isolated backend/database for preview testing.
+5. Deploy after the backend is healthy. Rewrites forward `/api/*` and `/health` before React deep-link routes. Financial/session responses are never cached. No Python functions or ledger databases are deployed in the frontend project.
+
+Vercel supports programmatic build-time configuration and external rewrites: [configuration documentation](https://vercel.com/docs/project-configuration/vercel-ts), [rewrites documentation](https://vercel.com/docs/routing/rewrites).
+
+## Persistent backend
+
+Build the root Dockerfile with repository-root build context. It contains only the existing backend, contracts and runtime dependencies. Use one service instance with a persistent disk. Start command is already provided:
 
 ```sh
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1 --no-access-log
 ```
 
-Configure the host to route HTTPS to port 8000. Serve frontend and API from the same origin. `/health` is the health-check path. Do not use a separate frontend host without designing and testing a new origin/authentication policy. Do not enable request-body, authorization-header, cookie, or error-body logging in your reverse proxy. Do not expose the development server.
+Configure HTTPS routing to port 8000 and `/health` as the health-check path. For Render choose a Docker web service and attach a persistent disk; before adopting a sponsor service, check its Devpost offer. All hosting setup remains manual. Do not log request bodies, cookies, authorization headers or provider error bodies.
 
-For Render, choose a Docker web service, a single instance, and persistent storage. Set the public origin to the exact HTTPS URL assigned by Render. Use dashboard environment variables for credentials; do not put their values in a blueprint, Git, a public environment export, or a screenshot.
+Required backend environment settings:
 
-## Required manual settings
+| Setting | Value |
+|---|---|
+| `CASHFLOW_PUBLIC_ORIGIN` | Exact frontend production origin, e.g. `https://your-site.vercel.app`, no trailing slash |
+| `CASHFLOW_BACKEND_HOST` | Exact backend DNS hostname, e.g. `your-backend.onrender.com`, no scheme/path/port/wildcard |
+| `CASHFLOW_ADMIN_PASSWORD` | Privately generated unique 12–256 character password |
+| `LEDGER_DB_PATH` | `/app/data/ledger.db` |
+| `PAYPAL_MODE` | `sandbox` |
+| `CASHFLOW_PAYPAL_ENABLED` | `false` until privately configured; keep false when skipping live tests |
+| `CASHFLOW_AI_ENABLED` | `false` unless intentionally configuring a supported AI provider |
 
-- `CASHFLOW_PUBLIC_ORIGIN=https://your-exact-host` with no path or trailing slash.
-- `CASHFLOW_ADMIN_PASSWORD`: a privately generated strong unique password, at least 12 characters. Public hosting without it fails startup.
-- `LEDGER_DB_PATH=/app/data/ledger.db` for the Docker layout. Mount a persistent disk at `/app/data`, writable only by the application user (UID 10001). Verify ownership for your host's mounted volume. A plain ephemeral filesystem is unacceptable.
-- `PAYPAL_MODE=sandbox`; keep `CASHFLOW_PAYPAL_ENABLED=false` until privately configured. Never use live credentials. Optional PayPal/AI values are described in `.env.example` and their module runbooks.
-- One worker and one application instance. Sessions, login throttling, and the periodic reconciliation scheduler are process-local. Scaling requires shared session/rate-limit infrastructure and one coordinated scheduler first.
-- An HTTPS proxy, private environment administration, access restrictions, and host-level request limits. Verify forwarding/IP settings against your host; do not trust arbitrary forwarded headers. The app limits sign-ins and financial actions and bounds request bodies.
+Mount the persistent disk at `/app/data`, writable by application UID 10001. Check actual mounted ownership: the image's directory ownership does not override an attached volume's permissions. Never use `/tmp` or an ephemeral deployment filesystem for the ledger. Store all optional credentials only in backend environment settings; never in Vercel frontend variables, Git, screenshots or exported environments.
+
+One worker and one instance are required because sessions, throttles and reconciliation scheduling are process-local. A restart invalidates sign-in sessions; it must preserve ledger entries. Configure host-level request limits and trusted proxy/IP handling without trusting arbitrary forwarded headers.
+
+## Hosted acceptance (performed by you)
+
+- Open the production frontend and refresh `/dashboard/forecast` directly; assets and deep links must work.
+- Sign in. Confirm `/api/v1/session` is authenticated, cookies are Secure/HttpOnly/SameSite=Strict, and no API response is cached. The proxy must preserve browser Origin, cookies and `X-CSRF-Token`; do not weaken server checks if forwarding is misconfigured.
+- Check 7/14/30 day forecasts, AI Rescue, scenarios, analytics, themes and saved widget layouts. All business data is explicitly fictional.
+- Record one proposal, inspect its amount, tick explicit approval and record approval. With PayPal disabled, invoice buttons remain unavailable and verified recovered cash stays zero.
+- Sign out and verify private ledger/API requests are rejected. Disconnect the backend and confirm an error rather than replacement fixture payments.
+- Test redeploy persistence and backup/restore below. Review host logs for sensitive data.
+
+Google sign-in, self-registration, email verification/reset and multiple tenants are not implemented. Access is through the configured administrator password. Local UI preferences do not change backend financial policy.
 
 ## Durable ledger and recovery acceptance
 

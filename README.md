@@ -2,13 +2,13 @@
 
 Cash-flow planning and recovery for a small business: forecast a reserve shortfall, understand the evidence, compare a what-if scenario, and approve an invoice workflow whose payment status comes only from PayPal.
 
-The integrated website uses a **clearly labelled fictional Juniper Studio dataset**. Forecasts and scenarios run Member 1's financial engine; recovery runs Member 2's evidence-based analysis; invoices and the append-only ledger run Member 3's services. The frontend and authenticated API connect these modules.
+The integrated website uses a **clearly labelled fictional Juniper Studio dataset**. Forecasts and scenarios run Member 1's financial engine; recovery runs Member 2's evidence-based analysis; invoices and the append-only ledger run Member 3's services. Member 4's frontend (merged from the `frontend` branch) and the authenticated API connect these modules. The earlier replacement UI has been removed.
 
 **Live PayPal Sandbox acceptance is intentionally skipped at the user's request.** Offline tests use fake transports. No claim is made that real invoice creation, sending, or payment verification has been validated with PayPal credentials. Hosting, private account setup, and a public demonstration remain deployment tasks.
 
 ## Run locally
 
-Use Python 3.12 or newer and Node.js 22.12+ (or Node 24 LTS). Run from the repository root. Linux/WSL is recommended for the complete test suite: Member 1's optional model-monitoring and retraining persistence use POSIX file locks. The website's core forecast/scenario flow does not load those optional services on Windows.
+Use Python 3.12 or newer and Node.js 24 LTS. Run from the repository root. Linux/WSL is recommended for the complete test suite: Member 1's optional model-monitoring and retraining persistence use POSIX file locks. The website's core forecast/scenario flow does not load those optional services on Windows.
 
 Windows CMD:
 
@@ -44,10 +44,10 @@ Without credentials the app provides read-only forecast, scenario, and recovery 
 
 1. Review opening **demo** cash, the reserve, projected low point, and breach date.
 2. Open Forecast and change the horizon between 7, 14, and 30 days.
-3. In What-if lab, shift a scheduled expense. Compare the resulting balances; no account is changed.
-4. In Recovery, run analysis. Review explanations, evidence IDs, and assumptions. With no external AI configured, the interface explicitly shows deterministic analysis.
-5. After administrator sign-in, prepare a receivable action. Its ledger state is `PROPOSED`, with zero recovered cash.
-6. Review and explicitly approve the amount and administrator-configured test payer. Approval alone sends nothing.
+3. In Scenarios, change receipt timing, revenue/expense percentages, or additional expenses. Compare the resulting balances; no account is changed.
+4. In AI Rescue, run analysis. Review explanations, evidence IDs, and assumptions. With no external AI configured, the interface explicitly shows deterministic analysis.
+5. After administrator sign-in, open Payments & Ledger and record a receivable proposal. Its ledger state is `PROPOSED`, with zero recovered cash.
+6. Inspect the ledger row and explicitly approve the amount and administrator-configured test payer. Approval alone sends nothing.
 7. When PayPal is privately configured, create a draft, send it, then verify. Only a fresh matching PayPal response can yield `VERIFIED_PAID`.
 
 A failed refresh hides old financial values. An uncertain payment request displays an honest error; refresh and reconcile rather than generating a new operation key. Partial, offline-marked, refunded, and unresolved entries do not contribute to verified recovered cash.
@@ -78,6 +78,7 @@ Browser tests build and run two temporary loopback servers: read-only demo and a
 ```sh
 cd frontend
 npm ci
+npm test
 npm run build
 npx playwright install chromium
 CASHFLOW_TEST_PYTHON=.venv/bin/python npm run test:e2e
@@ -85,11 +86,11 @@ CASHFLOW_TEST_PYTHON=.venv/bin/python npm run test:e2e
 
 The Python path is resolved from the **repository root** by the test server (an absolute path also works). On Windows CMD set `CASHFLOW_TEST_PYTHON=.venv\Scripts\python.exe` and `CASHFLOW_BROWSER_CHANNEL=chrome` to use an installed Chrome instead of downloading Chromium, then `npm run test:e2e`. Do not run against a production server. Test screenshots stay ignored under `frontend/test-results/`.
 
-CI runs the Linux offline suite, Postman guards, frontend build, and browser checks. The exact installed frontend dependency versions are captured in `frontend/package-lock.json`.
+CI runs the Linux offline suite, Postman guards, frontend unit tests, production build, and browser checks. The exact installed frontend dependency versions are captured in `frontend/package-lock.json`.
 
 ## Deployment and limitations
 
-See [deployment instructions](docs/DEPLOYMENT.md) for Docker, HTTPS, persistent storage, and restore requirements. There is no automatic cloud deployment. Run a **single backend worker**: session and login-rate-limit state are in memory; the reconciliation worker is attached to this process. Public origins require HTTPS and an administrator password. The application serves its built frontend from the same origin, with secure cookies and CSRF checks for ledger mutations. Do not expose Vite's development server publicly.
+See [deployment instructions](docs/DEPLOYMENT.md) for Docker, HTTPS, persistent storage, and restore requirements. There is no automatic cloud deployment. Run a **single backend worker**: session and login-rate-limit state are in memory; the reconciliation worker is attached to this process. Public origins require HTTPS and an administrator password. Locally, the application serves the built frontend. For deployment, Vercel serves the frontend and forwards API requests to the persistent backend; secure cookies and CSRF checks continue to apply. Do not expose Vite's development server publicly.
 
 The forecast uses a fixed fictional opening snapshot dated 2026-11-02. A newly verified invoice is shown separately in the ledger; it is **not silently added to that opening snapshot or counted again as recovered forecast cash**. Actual bank ingestion, customer onboarding, tenant isolation, production payments, multi-worker authentication, and public deployment acceptance are outside this demo. The advanced forecasting modules remain available through their documented Python interfaces.
 

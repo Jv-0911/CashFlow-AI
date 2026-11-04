@@ -1,10 +1,4 @@
-FROM node:24-bookworm-slim AS frontend
-WORKDIR /build/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
+# Persistent backend only. Member 4's frontend is deployed separately on Vercel.
 FROM python:3.14-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 LEDGER_DB_PATH=/app/data/ledger.db
 WORKDIR /app
@@ -13,7 +7,6 @@ COPY backend/constraints.txt ./backend/constraints.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt && useradd --uid 10001 --create-home cashflow
 COPY backend/app/ ./backend/app/
 COPY contracts/ ./contracts/
-COPY --from=frontend /build/frontend/dist/ ./frontend/dist/
 RUN mkdir -p /app/data && chown -R cashflow:cashflow /app
 USER cashflow
 EXPOSE 8000
