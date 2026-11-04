@@ -6,7 +6,7 @@ import type { LedgerEntry } from '../../types/ledger';
 import { formatCents } from '../../utils/currency';
 
 interface Receivable { id: string; customer: string; amount_cents: number; ledger_entry: unknown }
-export function LedgerActions({ entry, onChanged }: { entry?: LedgerEntry; onChanged: () => Promise<void> }) {
+export function LedgerActions({ entry, onChanged }: { entry?: LedgerEntry; onChanged: (notice?: string) => Promise<void> }) {
   const { serverAuthenticated } = useAuth();
   const [enabled, setEnabled] = useState(false);
   const [sources, setSources] = useState<Receivable[]>([]);
@@ -14,7 +14,6 @@ export function LedgerActions({ entry, onChanged }: { entry?: LedgerEntry; onCha
   const [approved, setApproved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   useEffect(() => {
     let active = true;
     if (serverAuthenticated) {
@@ -28,11 +27,13 @@ export function LedgerActions({ entry, onChanged }: { entry?: LedgerEntry; onCha
   if (!serverAuthenticated) return null;
   async function command(path: string, body?: object) {
     if(busy) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError('');
     try {
       const result = await apiClient<{results?: {error_code: string | null}[]}>(path, {method:'POST', ...(body ? {body:JSON.stringify(body)} : {})});
-      if(result.data.results?.some(r => r.error_code)) setNotice('Some invoices remain unresolved. Refresh their status before retrying.');
-      await onChanged();
+      const notice = result.data.results?.some(r => r.error_code)
+        ? 'Some invoices remain unresolved. Refresh their status before retrying.' : undefined;
+      // The page owns this notice because refresh unmounts these controls.
+      await onChanged(notice);
     } catch(err) {setError(err instanceof Error ? err.message : 'Action failed. Refresh the ledger before retrying.');}
     finally {setBusy(false);}
   }
@@ -41,7 +42,6 @@ export function LedgerActions({ entry, onChanged }: { entry?: LedgerEntry; onCha
     <h3>PayPal Sandbox actions</h3>
     {!enabled && <p>PayPal is not configured. Proposals and approvals can be recorded; invoice creation, sending and verification remain unavailable.</p>}
     {error && <p role="alert">{error}</p>}
-    {notice && <p role="status">{notice}</p>}
     {!entry ? <>
       <label htmlFor="recovery-source">Business receivable to propose</label>
       <select id="recovery-source" value={selected} onChange={e=>setSelected(e.target.value)} disabled={busy}>

@@ -40,6 +40,7 @@ import '../../styles/customization.css';
 export const PaymentsLedgerPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [ledgerData, setLedgerData] = useState<LedgerResponse | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
   const [currentTab, setCurrentTab] = useState<LedgerFilterTab>('all');
@@ -73,10 +74,11 @@ export const PaymentsLedgerPage: React.FC = () => {
     }
   };
 
-  const fetchLedger = useCallback(async () => {
+  const fetchLedger = useCallback(async (notice?: string) => {
     try {
       setLoading(true);
       setError(null);
+      setCommandNotice(notice ?? null);
       setLedgerData(null);
       setSelectedEntry(null);
       const res = await getLedgerEntries();
@@ -371,6 +373,7 @@ export const PaymentsLedgerPage: React.FC = () => {
         />
       )}
 
+      {commandNotice && <p role="status">{commandNotice}</p>}
       <LedgerActions onChanged={fetchLedger} />
       <p role="note">{ledgerData?.disclaimer}</p>
       {/* Dynamic Customizable Widget Grid */}

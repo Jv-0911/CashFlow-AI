@@ -1,11 +1,22 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+
+// Keep a disposable fixture session in memory so this larger suite does not
+// exceed the application's real five-login-per-minute limit.
+let authenticatedCookies: Awaited<ReturnType<BrowserContext['cookies']>> | undefined;
 
 async function signIn(page:Page) {
+  if (authenticatedCookies) {
+    await page.context().addCookies(authenticatedCookies);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard$/);
+    return;
+  }
   await page.goto('/login');
   await page.getByLabel('Email Address').fill('owner@example.test');
   await page.locator('#password-input').fill(`e2e-only-${process.env.CASHFLOW_E2E_RUN_ID}`);
   await page.locator('form button[type=submit]').click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  authenticatedCookies = await page.context().cookies();
 }
 test('Member 4 screens use the existing engines and preserve customization', async ({page}) => {
   const errors:string[]=[]; page.on('pageerror',error=>errors.push(error.message));
@@ -78,4 +89,25 @@ test('Member 4 mobile layout keeps navigation and forecast usable', async ({page
   await expect(page.getByRole('heading',{name:'Cash-Flow Forecast'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2)).toBe(true);
   await page.screenshot({path:'test-results/member4-mobile.png',fullPage:true});
+});
+
+test('reset to baseline clears scenario changes instead of retaining a receipt delay', async ({page}) => {
+  await signIn(page);
+  await page.goto('/dashboard/scenarios');
+  await expect(page.locator('.scenario-comparison-card')).toBeVisible();
+  const reset = page.waitForResponse(r=>r.url().endsWith('/api/v1/scenario') && r.request().method()==='POST');
+  await page.getByRole('button',{name:'Reset to Baseline',exact:true}).click();
+  const response = await reset;
+  expect(response.request().postDataJSON().modifiers.delayed_receivables_days).toBe(0);
+  expect((await response.json()).comparison.net_variance_cents).toBe(0);
+});
+
+test('reconciliation warning remains visible after the ledger refresh', async ({page}) => {
+  await signIn(page);
+  await page.goto('/dashboard/payments');
+  await page.route('**/api/v1/payments/reconcile', route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({results:[{entry_id:'fixture',status:'UNRESOLVED',error_code:'PAYPAL_TIMEOUT'}]})}));
+  const refreshed = page.waitForResponse(r=>r.url().endsWith('/api/v1/ledger'));
+  await page.getByRole('button',{name:'Reconcile uncertain invoices'}).click();
+  await refreshed;
+  await expect(page.getByText('Some invoices remain unresolved. Refresh their status before retrying.')).toBeVisible();
 });

@@ -18,7 +18,7 @@ interface LedgerDetailDrawerProps {
   entry: LedgerEntry | null;
   currency: string;
   onClose: () => void;
-  onChanged: () => Promise<void>;
+  onChanged: (notice?: string) => Promise<void>;
 }
 
 export const LedgerDetailDrawer: React.FC<LedgerDetailDrawerProps> = ({

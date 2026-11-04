@@ -3,8 +3,12 @@ on:
   push:
     branches: [main, integration, frontend, Payment-ledger, 'feat/**']
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   offline:
     runs-on: ubuntu-latest

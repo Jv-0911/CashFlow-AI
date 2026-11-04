@@ -43,6 +43,15 @@ const DEFAULT_MODIFIERS: ScenarioModifiers = {
   lump_sum_expense_cents: 0,
 };
 
+const BASELINE_MODIFIERS: ScenarioModifiers = {
+  preset_id: 'custom',
+  delayed_receivables_days: 0,
+  receipts_modifier_pct: 0,
+  expenses_modifier_pct: 0,
+  lump_sum_expense_cents: 0,
+  recurring_payroll_cents: 0,
+};
+
 export const ScenarioPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,10 +213,10 @@ export const ScenarioPage: React.FC = () => {
   };
 
   const handleResetToBaseline = () => {
-    setModifiers(DEFAULT_MODIFIERS);
+    setModifiers(BASELINE_MODIFIERS);
     if (baselineForecast) {
       setSafetyReserveCents(baselineForecast.safety_reserve_cents);
-      runSimulation(DEFAULT_MODIFIERS, baselineForecast.safety_reserve_cents);
+      runSimulation(BASELINE_MODIFIERS, baselineForecast.safety_reserve_cents);
     }
   };
 
