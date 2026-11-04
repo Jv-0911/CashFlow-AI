@@ -1,5 +1,7 @@
 # Integration handoff — 2026-11-04
 
+For the subsequent full retest, credential/cost review, two browser fixes and current workflow limitations, see [the final audit](FINAL_AUDIT_2026-11-04.md). The verification counts below describe the earlier integration checkpoint.
+
 The user authorized full-project integration and publication to `main`, expanding the earlier Member 3-only boundary. All supplied feature histories were preserved in local merges; no force-push or replacement of teammates' histories is required.
 
 ## Sources integrated
