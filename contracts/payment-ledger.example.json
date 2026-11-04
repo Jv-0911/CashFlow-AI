@@ -1,0 +1,32 @@
+{
+  "is_demo_data": true,
+  "contract_status": "MEMBER_3_IMPLEMENTATION_CONTRACT",
+  "version": "1.0",
+  "notes": [
+    "Amounts are integer USD cents. Dates are ISO 8601 UTC.",
+    "This file is a demo contract document. ledger_response is the response payload; requests are internal service examples, not new HTTP routes.",
+    "This implementation format replaces the earlier single-entry example. entry_id is local; provider_invoice_id is a separate PayPal identifier. Never translate a caller's status into payment proof.",
+    "Route names come from TEAM_WORKPLAN.md; approval route remains Member 4's decision.",
+    "Human identity comes from authenticated server context, never the request body.",
+    "The approved payer_reference is an opaque server-resolved reference, not an email.",
+    "Only the current VERIFIED_PAID state contributes to recovered_cash.",
+    "Provider status may be null if no valid status was returned; it is not proof of payment.",
+    "provider_invoice_id and invoice_url are null until available; verified_at is null unless currently verified.",
+    "Retries after ambiguous outbound writes may return PAYMENT_RECOVERY_REQUIRED. Do not change the key."
+  ],
+  "requests": {
+    "propose_internal": {"idempotency_key": "demo-proposal-1", "amount_cents": 1200, "currency": "USD"},
+    "approve_internal": {"entry_id": "entry_demo_1", "idempotency_key": "demo-approval-1", "expected_sequence": 1, "payer_reference": "payer_demo_1"},
+    "create_invoice": {"entry_id": "entry_demo_1", "idempotency_key": "demo-create-1"},
+    "send_invoice": {"idempotency_key": "demo-send-1"}
+  },
+  "ledger_response": {
+    "is_demo_data": true,
+    "entries": [
+      {"entry_id": "entry_demo_1", "amount_cents": 1200, "currency": "USD", "provider": "paypal_sandbox", "status": "INVOICE_SENT", "provider_status": "SENT", "provider_invoice_id": "INV2-DEMO-0000-0000-0001", "invoice_url": null, "paid_amount_cents": 0, "sequence": 6, "created_at": "2026-10-13T00:00:00+00:00", "updated_at": "2026-10-13T00:05:00+00:00", "verified_at": null},
+      {"entry_id": "entry_demo_2", "amount_cents": 2500, "currency": "USD", "provider": "paypal_sandbox", "status": "VERIFIED_PAID", "provider_status": "PAID", "provider_invoice_id": "INV2-DEMO-0000-0000-0002", "invoice_url": null, "paid_amount_cents": 2500, "sequence": 7, "created_at": "2026-10-13T00:00:00+00:00", "updated_at": "2026-10-13T00:10:00+00:00", "verified_at": "2026-10-13T00:10:00+00:00"}
+    ],
+    "recovered_cash": [{"amount_cents": 2500, "currency": "USD"}]
+  },
+  "error_response": {"error": {"code": "PAYMENT_STATUS_UNAVAILABLE", "message": "Payment status could not be verified.", "request_id": "req_demo_123"}}
+}
